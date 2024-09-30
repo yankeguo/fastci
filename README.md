@@ -27,7 +27,9 @@ console.log(env["CI_COMMIT_REF_NAME"]);
 
 ### Functions
 
-#### `useDeployer1(preset, manifest="deployer.yml")`, `deployer1`
+#### `useDeployer1(preset, manifest="deployer.yml")`
+
+Alias `deployer1`
 
 Use the `deployer1` preset and manifest, for compatibility with the legacy toolchain.
 
@@ -35,7 +37,9 @@ Use the `deployer1` preset and manifest, for compatibility with the legacy toolc
 useDeployer1("eco-staging", "deployer.yml");
 ```
 
-#### `useDeployer2(preset, manifest="deployer.yml")`, `deployer2`
+#### `useDeployer2(preset, manifest="deployer.yml")`
+
+Alias `deployer2`
 
 Use the `deployer2` preset and manifest, for compatibility with the legacy toolchain.
 
@@ -43,7 +47,9 @@ Use the `deployer2` preset and manifest, for compatibility with the legacy toolc
 useDeployer2("eco-staging", "deployer2.yml");
 ```
 
-#### `useRegistry(registry)`, `registry`
+#### `useRegistry(registry)`
+
+Alias `registry`
 
 Set the container registry for the pipeline.
 
@@ -51,7 +57,9 @@ Set the container registry for the pipeline.
 useRegistry("registry.cn-hangzhou.aliyuncs.com/eco-staging");
 ```
 
-#### `useJenkins()`, `jenkins`
+#### `useJenkins()`
+
+Alias `jenkins`
 
 Use the `Jenkins` environment variables for container image naming and environment switching.
 
@@ -59,7 +67,9 @@ Use the `Jenkins` environment variables for container image naming and environme
 useJenkins();
 ```
 
-#### `useDockerConfig(dockerConfig)`, `dockerConfig`, `useDockerconfig`, `dockerconfig`
+#### `useDockerConfig(dockerConfig)`
+
+Aliases `dockerConfig`, `useDockerconfig`, `dockerconfig`
 
 Set the Docker configuration for the pipeline.
 
@@ -68,7 +78,9 @@ useDockerConfig({ auths: {'registry.cn-hangzhou.aliyuncs.com': { username: "user
 useDockerConfig('/path/to/.docker/dir');
 ```
 
-#### `useKubeConfig(kubeConfig)`, `kubeConfig`, `useKubeconfig`, `kubeconfig`
+#### `useKubeConfig(kubeConfig)`
+
+Aliases `kubeConfig`, `useKubeconfig`, `kubeconfig`
 
 Set the Kubernetes configuration for the pipeline.
 
