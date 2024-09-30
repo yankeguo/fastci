@@ -106,3 +106,16 @@ func TestRunnerKubernetesWorkload(t *testing.T) {
 	require.Equal(t, "Deployment", r.workloadKind)
 	require.True(t, r.workloadInit)
 }
+
+func TestRunnerResolveCodingCredentials(t *testing.T) {
+	r := runnerForTest(t, `
+	useEnv('CODING_WEAVIN_USERNAME', 'hello')
+	useEnv('CODING_WEAVIN_PASSWORD', 'foo')
+	useEnv('CODING_WEAVIN_INFRA_PASSWORD', 'world')
+	`)
+	r.codingValuesTeam = "weavin"
+	r.codingValuesProject = "infra"
+	username, password := r.resolveCodingCredentials()
+	require.Equal(t, "hello", username)
+	require.Equal(t, "world", password)
+}

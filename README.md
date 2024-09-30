@@ -338,6 +338,17 @@ Deploy the container image to patch `coding.net` repository values file.
 doDeployCodingValues();
 ```
 
+`fastci` will search `coding.net` credentials from the environment variables, in order:
+
+- `CODING_MY_TEAM_MY_PROJECT_MY_REPO_USERNAME` and `CODING_MY_TEAM_MY_PROJECT_MY_REPO_PASSWORD`
+- `CODING_MY_TEAM_MY_PROJECT_USERNAME` and `CODING_MY_TEAM_MY_PROJECT_PASSWORD`
+- `CODING_MY_TEAM_USERNAME` and `CODING_MY_TEAM_PASSWORD`
+- `CODING_USERNAME` and `CODING_PASSWORD`
+
+All characters in the team, project, and repo names will be converted to uppercase.
+
+All non-numeric and non-alphabetic characters in the team, project, and repo names will be replaced with `_`.
+
 ### Compatibility Functions
 
 #### `useDeployer1(preset, manifest="deployer.yml")`

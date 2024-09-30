@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/robertkrimen/otto"
@@ -42,6 +43,13 @@ type Runner struct {
 	workloadKind      string
 	workloadContainer string
 	workloadInit      bool
+
+	codingValuesTeam    string
+	codingValuesProject string
+	codingValuesRepo    string
+	codingValuesBranch  string
+	codingValuesFile    string
+	codingValuesUpdate  otto.Value
 
 	dockerConfig string
 	kubeconfig   string
@@ -209,6 +217,23 @@ func (r *Runner) loadObjectStringField(out *string, obj *otto.Object, name strin
 	*out = val.String()
 }
 
+func (r *Runner) loadObjectFunctionField(out *otto.Value, obj *otto.Object, name string) {
+	val := rg.Must(obj.Get(name))
+	if val.IsUndefined() {
+		return
+	}
+	if val.IsNull() {
+		*out = otto.Value{}
+		return
+	}
+	if val.IsObject() {
+		if val.Class() != "Function" {
+			panic(fmt.Sprintf("field %s should be a function", name))
+		}
+	}
+	*out = val
+}
+
 func (r *Runner) useDeployer1(call otto.FunctionCall) otto.Value {
 	//TODO: implement deployer1
 	return otto.NullValue()
@@ -266,6 +291,66 @@ func (r *Runner) useKubernetesWorkload(call otto.FunctionCall) otto.Value {
 	}))
 }
 
+func (r *Runner) resolveCodingCredentials() (username string, password string) {
+	var parts []string
+	if r.codingValuesTeam != "" {
+		parts = append(parts, sanitizeEnvKey(r.codingValuesTeam))
+		if r.codingValuesProject != "" {
+			parts = append(parts, sanitizeEnvKey(r.codingValuesProject))
+			if r.codingValuesRepo != "" {
+				parts = append(parts, sanitizeEnvKey(r.codingValuesRepo))
+			}
+		}
+	}
+	usernameKeys := []string{"CODING_USERNAME"}
+	passwordKeys := []string{"CODING_PASSWORD"}
+	for i := range parts {
+		usernameKeys = append(usernameKeys, "CODING_"+strings.Join(parts[:i+1], "_")+"_USERNAME")
+		passwordKeys = append(passwordKeys, "CODING_"+strings.Join(parts[:i+1], "_")+"_PASSWORD")
+	}
+	slices.Reverse(usernameKeys)
+	slices.Reverse(passwordKeys)
+
+	for _, usernameKey := range usernameKeys {
+		val := rg.Must(r.env.Get(usernameKey))
+		if val.IsString() {
+			username = val.String()
+			log.Println("use coding username from:", usernameKey)
+			break
+		}
+	}
+
+	for _, passwordKey := range passwordKeys {
+		val := rg.Must(r.env.Get(passwordKey))
+		if val.IsString() {
+			password = val.String()
+			log.Println("use coding password from:", passwordKey)
+			break
+		}
+	}
+	return
+}
+
+func (r *Runner) useCodingValues(call otto.FunctionCall) otto.Value {
+	if arg := call.Argument(0); arg.IsObject() {
+		obj := arg.Object()
+		r.loadObjectStringField(&r.codingValuesTeam, obj, "team")
+		r.loadObjectStringField(&r.codingValuesProject, obj, "project")
+		r.loadObjectStringField(&r.codingValuesRepo, obj, "repo")
+		r.loadObjectStringField(&r.codingValuesBranch, obj, "branch")
+		r.loadObjectStringField(&r.codingValuesFile, obj, "file")
+		r.loadObjectFunctionField(&r.codingValuesUpdate, obj, "update")
+	}
+	return rg.Must(r.createPlainObject(map[string]any{
+		"team":    r.codingValuesTeam,
+		"project": r.codingValuesProject,
+		"repo":    r.codingValuesRepo,
+		"branch":  r.codingValuesBranch,
+		"file":    r.codingValuesFile,
+		"update":  r.codingValuesUpdate,
+	}))
+}
+
 func (r *Runner) setup() (err error) {
 	r.vm = otto.New()
 
@@ -318,6 +403,7 @@ func (r *Runner) setup() (err error) {
 	r.vm.Set("doPackage", r.doPackage)
 	r.vm.Set("doPublish", r.doPublish)
 	r.vm.Set("useKubernetesWorkload", r.useKubernetesWorkload)
+	r.vm.Set("useCodingValues", r.useCodingValues)
 	return
 }
 
@@ -331,6 +417,7 @@ func (r *Runner) clear() {
 	}
 	r.tempDirs = nil
 	r.env = nil
+	r.codingValuesUpdate = otto.Value{}
 	r.vm = nil
 }
 
