@@ -17,13 +17,8 @@ Since CI pipeline is very complex, the `fastci` is desiged to read the `JavaScri
 
 ```shell
 cat <<-EOF | fastci
-use_deployer2_preset("eco-staging")
-use_deployer2_manifest()
-use_jenkins()
-build()
-package()
-push()
-deploy_to_k8s()
+useDeployer2("eco-staging", "mobile/deployer2.yml")
+useJenkins()
 EOF
 ```
 
@@ -39,9 +34,9 @@ The environment variables that will be used in the pipeline.
 console.log(env["CI_COMMIT_REF_NAME"]);
 ```
 
-### Configuration Functions
+### Functions
 
-#### `useDeployer1(preset, manifest)`, `deployer1`
+#### `useDeployer1(preset, manifest="deployer.yml")`, `deployer1`
 
 Use the `deployer1` preset and manifest, for compatibility with the legacy toolchain.
 
@@ -49,12 +44,20 @@ Use the `deployer1` preset and manifest, for compatibility with the legacy toolc
 useDeployer1("eco-staging", "deployer.yml");
 ```
 
-#### `useDeployer2(preset, manifest)`, `deployer2`
+#### `useDeployer2(preset, manifest="deployer.yml")`, `deployer2`
 
 Use the `deployer2` preset and manifest, for compatibility with the legacy toolchain.
 
 ```javascript
 useDeployer2("eco-staging", "deployer2.yml");
+```
+
+#### `useRegistry(registry)`, `registry`
+
+Set the container registry for the pipeline.
+
+```javascript
+useRegistry("registry.cn-hangzhou.aliyuncs.com/eco-staging");
 ```
 
 #### `useJenkins()`, `jenkins`
@@ -63,6 +66,24 @@ Use the `Jenkins` environment variables for container image naming and environme
 
 ```javascript
 useJenkins();
+```
+
+#### `useDockerConfig(dockerConfig)`, `dockerConfig`, `useDockerconfig`, `dockerconfig`
+
+Set the Docker configuration for the pipeline.
+
+```javascript
+useDockerConfig({ auths: {'registry.cn-hangzhou.aliyuncs.com': { username: "username", password: "password" } });
+useDockerConfig('/path/to/.docker/dir');
+```
+
+#### `useKubeConfig(kubeConfig)`, `kubeConfig`, `useKubeconfig`, `kubeconfig`
+
+Set the Kubernetes configuration for the pipeline.
+
+```javascript
+useKubeConfig({ apiVersion: "v1", clusters: [], contexts: [], users: [] });
+useKubeConfig("/path/to/.kube/config/file");
 ```
 
 ## Credits
