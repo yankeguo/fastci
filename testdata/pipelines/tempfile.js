@@ -4,12 +4,12 @@ useDockerConfig({
     }
 })
 
-if (!dockerconfig()) {
+if (!useDockerConfig()) {
     throw new Error('dockerconfig() failed')
 }
 
 useKubeconfig({ hello: 'world' })
 
-if (!kubeconfig()) {
+if (!useKubeconfig()) {
     throw new Error('kubeconfig() failed')
 }

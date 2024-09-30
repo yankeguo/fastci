@@ -20,6 +20,13 @@ type Pipeline struct {
 	TemporaryFiles       []string
 
 	Registry string
+	Image    string
+	Profile  string
+	Version  string
+
+	BuildDir         string
+	BuildScriptShell string
+	BuildScriptFile  string
 
 	DockerConfig string
 	Kubeconfig   string
@@ -94,11 +101,80 @@ func (p *Pipeline) useKubeconfig(call otto.FunctionCall) otto.Value {
 		rg.Must0(json.Unmarshal(buf, &m))
 		buf = rg.Must(yaml.Marshal(m))
 		p.Kubeconfig = rg.Must(p.createTemporaryFile(buf))
-		log.Println("use kubeconfig:", p.Kubeconfig)
 	} else if val.IsString() {
 		p.Kubeconfig = val.String()
-		log.Println("use kubeconfig:", p.Kubeconfig)
 	}
+	log.Println("use kubeconfig:", p.Kubeconfig)
+	return otto.NullValue()
+}
+
+func (p *Pipeline) useImage(call otto.FunctionCall) otto.Value {
+	if len(call.ArgumentList) == 0 {
+		return rg.Must(otto.ToValue(p.Image))
+	}
+	p.Image = call.Argument(0).String()
+	log.Println("use image:", p.Image)
+	return otto.NullValue()
+}
+
+func (p *Pipeline) useProfile(call otto.FunctionCall) otto.Value {
+	if len(call.ArgumentList) == 0 {
+		return rg.Must(otto.ToValue(p.Profile))
+	}
+	p.Profile = call.Argument(0).String()
+	log.Println("use profile:", p.Profile)
+	return otto.NullValue()
+}
+
+func (p *Pipeline) useVersion(call otto.FunctionCall) otto.Value {
+	if len(call.ArgumentList) == 0 {
+		return rg.Must(otto.ToValue(p.Version))
+	}
+	p.Version = call.Argument(0).String()
+	log.Println("use version:", p.Version)
+	return otto.NullValue()
+}
+
+func (p *Pipeline) useBuildScript(call otto.FunctionCall) otto.Value {
+	if len(call.ArgumentList) == 0 {
+		return rg.Must(otto.ToValue(p.BuildScriptFile))
+	}
+	script := call.Argument(0).String()
+	p.BuildScriptFile = rg.Must(p.createTemporaryFile([]byte(script)))
+	log.Println("use build script:", script)
+	return otto.NullValue()
+}
+
+func (p *Pipeline) useBuildScriptFile(call otto.FunctionCall) otto.Value {
+	if len(call.ArgumentList) == 0 {
+		return rg.Must(otto.ToValue(p.BuildScriptFile))
+	}
+	file := call.Argument(0).String()
+	p.BuildScriptFile = file
+	log.Println("use build script file:", p.BuildScriptFile)
+	return otto.NullValue()
+}
+
+func (p *Pipeline) useBuildScriptShell(call otto.FunctionCall) otto.Value {
+	if len(call.ArgumentList) == 0 {
+		return rg.Must(otto.ToValue(p.BuildScriptShell))
+	}
+	p.BuildScriptShell = call.Argument(0).String()
+	log.Println("use build script shell:", p.BuildScriptShell)
+	return otto.NullValue()
+}
+
+func (p *Pipeline) useBuildDir(call otto.FunctionCall) otto.Value {
+	if len(call.ArgumentList) == 0 {
+		return rg.Must(otto.ToValue(p.BuildDir))
+	}
+	p.BuildDir = call.Argument(0).String()
+	log.Println("use build dir:", p.BuildDir)
+	return otto.NullValue()
+}
+
+func (p *Pipeline) doBuild(call otto.FunctionCall) otto.Value {
+	//TODO: implement doBuild
 	return otto.NullValue()
 }
 
@@ -108,26 +184,19 @@ func (p *Pipeline) setupEnv(vm *otto.Otto) {
 
 func (p *Pipeline) setupFunctions(vm *otto.Otto) {
 	vm.Set("useDeployer1", p.useDeployer1)
-	vm.Set("deployer1", p.useDeployer1)
-
 	vm.Set("useDeployer2", p.useDeployer2)
-	vm.Set("deployer2", p.useDeployer2)
-
 	vm.Set("useRegistry", p.useRegistry)
-	vm.Set("registry", p.useRegistry)
-
+	vm.Set("useImage", p.useImage)
+	vm.Set("useProfile", p.useProfile)
+	vm.Set("useVersion", p.useVersion)
 	vm.Set("useJenkins", p.useJenkins)
-	vm.Set("jenkins", p.useJenkins)
-
 	vm.Set("useDockerConfig", p.useDockerConfig)
-	vm.Set("dockerConfig", p.useDockerConfig)
-	vm.Set("useDockerconfig", p.useDockerConfig)
-	vm.Set("dockerconfig", p.useDockerConfig)
-
 	vm.Set("useKubeconfig", p.useKubeconfig)
-	vm.Set("kubeconfig", p.useKubeconfig)
-	vm.Set("useKubeConfig", p.useKubeconfig)
-	vm.Set("kubeConfig", p.useKubeconfig)
+	vm.Set("useBuildScript", p.useBuildScript)
+	vm.Set("useBuildScriptFile", p.useBuildScriptFile)
+	vm.Set("useBuildScriptShell", p.useBuildScriptShell)
+	vm.Set("useBuildDir", p.useBuildDir)
+	vm.Set("doBuild", p.doBuild)
 }
 
 func (p *Pipeline) Setup(vm *otto.Otto) {

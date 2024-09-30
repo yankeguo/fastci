@@ -29,8 +29,6 @@ console.log(env["CI_COMMIT_REF_NAME"]);
 
 #### `useDeployer1(preset, manifest="deployer.yml")`
 
-Alias `deployer1`
-
 Use the `deployer1` preset and manifest, for compatibility with the legacy toolchain.
 
 ```javascript
@@ -39,29 +37,47 @@ useDeployer1("eco-staging", "deployer.yml");
 
 #### `useDeployer2(preset, manifest="deployer.yml")`
 
-Alias `deployer2`
-
 Use the `deployer2` preset and manifest, for compatibility with the legacy toolchain.
 
 ```javascript
-useDeployer2("eco-staging", "deployer2.yml");
+useDeployer2("eco-staging", "mobile/deployer2.yml");
 ```
 
 #### `useRegistry(registry)`
 
-Alias `registry`
-
-Set the container registry for the pipeline.
+Get or set the container registry for the pipeline.
 
 ```javascript
 useRegistry("registry.cn-hangzhou.aliyuncs.com/eco-staging");
 ```
 
+#### `useImage(image)`
+
+Get or set the container image name
+
+```javascript
+useImage("my-project");
+```
+
+#### `useProfile(profile)`
+
+Get or set the container profile for the pipeline.
+
+```javascript
+useProfile("staging");
+```
+
+### `useVersion(version)`
+
+Get or set the container version for the pipeline.
+
+```javascript
+useVersion("1.0.0");
+```
+
 #### `useJenkins()`
 
-Alias `jenkins`
-
-Use the `Jenkins` environment variables for container image naming and environment switching.
+Use the `Jenkins` environment variables for `image`, `profile` and `version`.
 
 ```javascript
 useJenkins();
@@ -69,24 +85,73 @@ useJenkins();
 
 #### `useDockerConfig(dockerConfig)`
 
-Aliases `dockerConfig`, `useDockerconfig`, `dockerconfig`
-
 Set the Docker configuration for the pipeline.
 
 ```javascript
-useDockerConfig({ auths: {'registry.cn-hangzhou.aliyuncs.com': { username: "username", password: "password" } });
-useDockerConfig('/path/to/.docker/dir');
+useDockerConfig({
+  auths: {
+    "registry.cn-hangzhou.aliyuncs.com": {
+      username: "username",
+      password: "password",
+    },
+  },
+});
+useDockerConfig("/path/to/docker/config/dir");
 ```
 
-#### `useKubeConfig(kubeConfig)`
-
-Aliases `kubeConfig`, `useKubeconfig`, `kubeconfig`
+#### `useKubeconfig(kubeconfig)`
 
 Set the Kubernetes configuration for the pipeline.
 
 ```javascript
-useKubeConfig({ apiVersion: "v1", clusters: [], contexts: [], users: [] });
-useKubeConfig("/path/to/.kube/config/file");
+useKubeconfig({ apiVersion: "v1", clusters: [], contexts: [], users: [] });
+useKubeconfig("/path/to/kubeconfig/file");
+```
+
+#### `useBuildScript(script)`
+
+Get or set the build script for the pipeline.
+
+```javascript
+// script content
+useBuildScript(
+  "\
+#!/bin/bash\n\
+echo 'Building...'\n\
+",
+);
+```
+
+#### `useBuildScriptFile(scriptFile)`
+
+Get or set the build script file for the pipeline.
+
+```javascript
+useBuildScriptFile("build.sh");
+```
+
+### `useBuildScriptShell(shell)`
+
+Get or set the build script shell for the pipeline.
+
+```javascript
+useBuildScriptShell("zsh");
+```
+
+#### `useBuildDir(buildDir)`
+
+Get or set the build directory for the pipeline.
+
+```javascript
+useBuildDir("build");
+```
+
+#### `doBuild()`
+
+Execute the build script in the build directory.
+
+```javascript
+doBuild();
 ```
 
 ## Credits
