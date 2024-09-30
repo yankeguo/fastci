@@ -19,6 +19,8 @@ type Runner struct {
 
 	env *otto.Object
 
+	noClear bool
+
 	tempDirs []string
 
 	registry string
@@ -26,8 +28,8 @@ type Runner struct {
 	profile  string
 	version  string
 
-	buildScriptFile  string
-	buildScriptShell []string
+	buildScriptFile string
+	buildShell      []string
 
 	packageDockerfileFile string
 	packageContext        string
@@ -62,7 +64,7 @@ func (r *Runner) useDeployer2(call otto.FunctionCall) otto.Value {
 }
 
 func (r *Runner) doBuild(call otto.FunctionCall) otto.Value {
-	shell := r.buildScriptShell
+	shell := r.buildShell
 	if len(shell) == 0 {
 		shell = []string{"/bin/bash"}
 	}
@@ -81,6 +83,10 @@ func (r *Runner) doBuild(call otto.FunctionCall) otto.Value {
 }
 
 func (r *Runner) doPackage(call otto.FunctionCall) otto.Value {
+	return otto.NullValue()
+}
+
+func (r *Runner) doPublish(call otto.FunctionCall) otto.Value {
 	return otto.NullValue()
 }
 
@@ -104,18 +110,18 @@ func (r *Runner) setup() (err error) {
 		}
 	}
 
-	r.vm.Set("useEnv", CreateFunctionObjectGetSet(r.env, "env"))
+	r.vm.Set("useEnv", FunctionForObjectGetterSetter(r.env, "env"))
 	r.vm.Set("useDeployer1", r.useDeployer1)
 	r.vm.Set("useDeployer2", r.useDeployer2)
-	r.vm.Set("useRegistry", CreateFunctionGetSetString(&r.registry, "registry"))
-	r.vm.Set("useImage", CreateFunctionGetSetString(&r.image, "image"))
-	r.vm.Set("useProfile", CreateFunctionGetSetString(&r.profile, "profile"))
-	r.vm.Set("useVersion", CreateFunctionGetSetString(&r.version, "version"))
-	r.vm.Set("useDockerConfig", CreateFunctionGetSetPathOrContent(&r.dockerConfig, "docker config", func(buf []byte) (out string, err error) {
+	r.vm.Set("useRegistry", FunctionForStringGetterSetter(&r.registry, "registry"))
+	r.vm.Set("useImage", FunctionForStringGetterSetter(&r.image, "image"))
+	r.vm.Set("useProfile", FunctionForStringGetterSetter(&r.profile, "profile"))
+	r.vm.Set("useVersion", FunctionForStringGetterSetter(&r.version, "version"))
+	r.vm.Set("useDockerConfig", FunctionForLongStringGetterSetter(&r.dockerConfig, "docker config", func(buf []byte) (out string, err error) {
 		_, out, err = r.createTempFile("config.json", bytes.TrimSpace(buf))
 		return
 	}))
-	r.vm.Set("useKubeconfig", CreateFunctionGetSetPathOrContent(&r.kubeconfig, "kubeconfig", func(buf []byte) (out string, err error) {
+	r.vm.Set("useKubeconfig", FunctionForLongStringGetterSetter(&r.kubeconfig, "kubeconfig", func(buf []byte) (out string, err error) {
 		buf = bytes.TrimSpace(buf)
 		if bytes.HasPrefix(buf, []byte("{")) {
 			if buf, err = ConvertJSONToYAML(buf); err != nil {
@@ -125,24 +131,30 @@ func (r *Runner) setup() (err error) {
 		out, _, err = r.createTempFile("kubeconfig.yaml", buf)
 		return
 	}))
-	r.vm.Set("useBuildScript", CreateFunctionGetSetPathOrContent(&r.buildScriptFile, "build script", func(buf []byte) (out string, err error) {
+	r.vm.Set("useBuildScript", FunctionForLongStringGetterSetter(&r.buildScriptFile, "build script", func(buf []byte) (out string, err error) {
 		out, _, err = r.createTempFile("build.sh", bytes.TrimSpace(buf))
 		return
 	}))
-	r.vm.Set("useBuildScriptShell", CreateFunctionGetSetStringSlice(&r.buildScriptShell, "build script shell"))
+	r.vm.Set("useBuildShell", FunctionForStringSliceGetterSetter(&r.buildShell, "build script shell"))
 	r.vm.Set("doBuild", r.doBuild)
-	r.vm.Set("usePackageDockerfile", CreateFunctionGetSetString(&r.packageDockerfileFile, "package dockerfile"))
-	r.vm.Set("usePackageContext", CreateFunctionGetSetString(&r.packageContext, "package context"))
+	r.vm.Set("usePackageDockerfile", FunctionForStringGetterSetter(&r.packageDockerfileFile, "package dockerfile"))
+	r.vm.Set("usePackageContext", FunctionForStringGetterSetter(&r.packageContext, "package context"))
 	r.vm.Set("doPackage", r.doPackage)
+	r.vm.Set("doPublish", r.doPublish)
 	return
 }
 
-func (r *Runner) cleanup() {
+func (r *Runner) clear() {
+	if r.noClear {
+		return
+	}
 	for _, dir := range r.tempDirs {
 		log.Println("remove temporary directory:", dir)
 		os.RemoveAll(dir)
 	}
 	r.tempDirs = nil
+	r.env = nil
+	r.vm = nil
 }
 
 func (r *Runner) createTempDir() (dir string, err error) {
@@ -164,7 +176,7 @@ func (r *Runner) Execute(ctx context.Context, script any) (err error) {
 	defer rg.Guard(&err)
 
 	rg.Must0(r.setup())
-	defer r.cleanup()
+	defer r.clear()
 
 	_, err = r.vm.Run(script)
 	return

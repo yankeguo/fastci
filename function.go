@@ -3,6 +3,7 @@ package fastci
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"log"
 	"strings"
 
@@ -10,7 +11,7 @@ import (
 	"github.com/yankeguo/rg"
 )
 
-func CreateFunctionObjectGetSet(out *otto.Object, name string) func(call otto.FunctionCall) otto.Value {
+func FunctionForObjectGetterSetter(out *otto.Object, name string) func(call otto.FunctionCall) otto.Value {
 	return func(call otto.FunctionCall) otto.Value {
 		if len(call.ArgumentList) == 0 {
 			return out.Value()
@@ -23,14 +24,14 @@ func CreateFunctionObjectGetSet(out *otto.Object, name string) func(call otto.Fu
 				out.Set(key.String(), val)
 				log.Printf("set env: %s", key.String())
 			} else {
-				panic("set env failed, key should be string")
+				panic(fmt.Sprintf("set env %s failed, key should be string", key.String()))
 			}
 			return val
 		}
 	}
 }
 
-func CreateFunctionGetSetStringSlice(out *[]string, name string) func(call otto.FunctionCall) otto.Value {
+func FunctionForStringSliceGetterSetter(out *[]string, name string) func(call otto.FunctionCall) otto.Value {
 	return func(call otto.FunctionCall) otto.Value {
 		var newValues []string
 		for _, val := range call.ArgumentList {
@@ -38,13 +39,13 @@ func CreateFunctionGetSetStringSlice(out *[]string, name string) func(call otto.
 		}
 		if len(newValues) > 0 {
 			*out = newValues
-			log.Printf("use %s: %v", name, *out)
+			log.Printf("use %s: [%s]", name, strings.Join(*out, ", "))
 		}
 		return rg.Must(otto.ToValue(*out))
 	}
 }
 
-func CreateFunctionGetSetString(out *string, name string) func(call otto.FunctionCall) otto.Value {
+func FunctionForStringGetterSetter(out *string, name string) func(call otto.FunctionCall) otto.Value {
 	return func(call otto.FunctionCall) otto.Value {
 		if val := call.Argument(0); val.IsString() {
 			*out = val.String()
@@ -54,7 +55,7 @@ func CreateFunctionGetSetString(out *string, name string) func(call otto.Functio
 	}
 }
 
-func CreateFunctionGetSetPathOrContent(out *string, name string, convert func(buf []byte) (out string, err error)) func(call otto.FunctionCall) otto.Value {
+func FunctionForLongStringGetterSetter(out *string, name string, convert func(buf []byte) (out string, err error)) func(call otto.FunctionCall) otto.Value {
 	return func(call otto.FunctionCall) otto.Value {
 		var (
 			newContent []byte
@@ -62,7 +63,12 @@ func CreateFunctionGetSetPathOrContent(out *string, name string, convert func(bu
 		)
 
 		if val := call.Argument(0); val.IsString() {
-			newContent = []byte(val.String())
+			for i, val := range call.ArgumentList {
+				if i > 0 {
+					newContent = append(newContent, '\n')
+				}
+				newContent = append(newContent, []byte(val.String())...)
+			}
 		} else if val.IsObject() {
 			buf := rg.Must(val.Object().MarshalJSON())
 
@@ -83,9 +89,13 @@ func CreateFunctionGetSetPathOrContent(out *string, name string, convert func(bu
 				} else {
 					if len(data.Content) > 0 {
 						var s string
+						var lines []string
 						if err := json.Unmarshal(data.Content, &s); err == nil {
 							// string
 							newContent = []byte(s)
+						} else if err := json.Unmarshal(data.Content, &lines); err == nil {
+							// array of string
+							newContent = []byte(strings.Join(lines, "\n"))
 						} else {
 							// object (raw)
 							newContent = data.Content
