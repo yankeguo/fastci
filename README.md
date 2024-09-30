@@ -18,17 +18,17 @@ EOF
 
 ## Pipeline
 
-### Variables
+### Functions
 
-#### `env`
+#### `useEnv`
 
-The environment variables that will be used in the pipeline.
+Get or set the environment variables for the pipeline.
 
 ```javascript
-console.log(env["CI_COMMIT_REF_NAME"]);
+useEnv(); // return a map of all environment variables
+useEnv("key"); // return the value of the specified environment variable
+useEnv("key", "value"); // set the value of the specified environment variable
 ```
-
-### Functions
 
 #### `useDeployer1(preset, manifest="deployer.yml")`
 
