@@ -287,12 +287,12 @@ Deploy the container image to the Kubernetes cluster.
 doDeployKubernetesWorkload();
 ```
 
-#### `useCodingValuesFile(opts)`
+#### `useCodingValues(opts)`
 
 Configure the `coding.net` repository values file for deploying the container image.
 
 ```javascript
-useCodingValuesFile({
+useCodingValues({
   team: "my-team",
   project: "my-project",
   repo: "my-repo",
@@ -305,7 +305,7 @@ useCodingValuesFile({
 
 // sub-sequence calls will merge the options
 // for example, the following two ways are equivalent
-useCodingValuesFile({
+useCodingValues({
   team: "my-team",
   project: "my-project",
   branch: "main",
@@ -314,11 +314,11 @@ useCodingValuesFile({
     m[useEnv("JOB_NAME")] = useEnv("BUILD_NUMBER");
   },
 });
-useCodingValuesFile({
+useCodingValues({
   repo: "my-repo",
 });
 //
-useCodingValuesFile({
+useCodingValues({
   team: "my-team",
   project: "my-project",
   repo: "my-repo",
@@ -330,12 +330,12 @@ useCodingValuesFile({
 });
 ```
 
-#### `doDeployCodingValuesFile(options)`
+#### `doDeployCodingValues(options)`
 
 Deploy the container image to patch `coding.net` repository values file.
 
 ```javascript
-doDeployCodingValuesFile();
+doDeployCodingValues();
 ```
 
 ### Compatibility Functions

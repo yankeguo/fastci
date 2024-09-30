@@ -88,5 +88,21 @@ func TestRunnerBuild(t *testing.T) {
 	'echo hello',
 	'sleep 1',
 	'echo world'
-	)`)
+	);doBuild();`)
+}
+
+func TestRunnerKubernetesWorkload(t *testing.T) {
+	r := runnerForTest(t, `
+	useKubernetesWorkload({namespace:'hello'})
+	useKubernetesWorkload({name:'world'})
+	useKubernetesWorkload({container:'nginx'})
+	useKubernetesWorkload({kind:'Deployment'})
+	useKubernetesWorkload({container:null})
+	useKubernetesWorkload({init:1})
+	`)
+	require.Equal(t, "hello", r.workloadNamespace)
+	require.Equal(t, "world", r.workloadName)
+	require.Equal(t, "", r.workloadContainer)
+	require.Equal(t, "Deployment", r.workloadKind)
+	require.True(t, r.workloadInit)
 }
