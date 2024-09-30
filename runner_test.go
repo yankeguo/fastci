@@ -42,22 +42,22 @@ func TestRunnerEnv(t *testing.T) {
 
 func TestRunnerRegistry(t *testing.T) {
 	r := runnerForTest(t, `useRegistry('hello');useRegistry(useRegistry()+"!")`)
-	require.Equal(t, "hello!", r.registry)
+	require.Equal(t, "hello!", r.state.registry)
 }
 
 func TestRunnerImage(t *testing.T) {
 	r := runnerForTest(t, `useImage('hello');useImage(useImage()+"!")`)
-	require.Equal(t, "hello!", r.image)
+	require.Equal(t, "hello!", r.state.image)
 }
 
 func TestRunnerProfile(t *testing.T) {
 	r := runnerForTest(t, `useProfile('hello');useProfile(useProfile()+"!")`)
-	require.Equal(t, "hello!", r.profile)
+	require.Equal(t, "hello!", r.state.profile)
 }
 
 func TestRunnerVersion(t *testing.T) {
 	r := runnerForTest(t, `useVersion('hello');useVersion(useVersion()+"!")`)
-	require.Equal(t, "hello!", r.version)
+	require.Equal(t, "hello!", r.state.version)
 }
 
 func TestRunnerDockerConfig(t *testing.T) {
@@ -68,7 +68,7 @@ func TestRunnerDockerConfig(t *testing.T) {
 	}
 	)`)
 	defer clearRunnerForTest(t, r)
-	buf := rg.Must(os.ReadFile(filepath.Join(r.dockerConfig, "config.json")))
+	buf := rg.Must(os.ReadFile(filepath.Join(r.state.docker.dockerConfigPath, "config.json")))
 	require.Equal(t, `{"auths":{}}`, string(buf))
 }
 
@@ -79,7 +79,7 @@ func TestRunnerKubeconfig(t *testing.T) {
 	hello:'world'}
 })`)
 	defer clearRunnerForTest(t, r)
-	buf := rg.Must(os.ReadFile(r.kubeconfig))
+	buf := rg.Must(os.ReadFile(r.state.kubernetes.kubeconfigPath))
 	require.Equal(t, "hello: world\n", string(buf))
 }
 
@@ -100,11 +100,11 @@ func TestRunnerKubernetesWorkload(t *testing.T) {
 	useKubernetesWorkload({container:null})
 	useKubernetesWorkload({init:1})
 	`)
-	require.Equal(t, "hello", r.workloadNamespace)
-	require.Equal(t, "world", r.workloadName)
-	require.Equal(t, "", r.workloadContainer)
-	require.Equal(t, "Deployment", r.workloadKind)
-	require.True(t, r.workloadInit)
+	require.Equal(t, "hello", r.state.kubernetes.workload.namespace)
+	require.Equal(t, "world", r.state.kubernetes.workload.name)
+	require.Equal(t, "", r.state.kubernetes.workload.container)
+	require.Equal(t, "Deployment", r.state.kubernetes.workload.kind)
+	require.True(t, r.state.kubernetes.workload.init)
 }
 
 func TestRunnerResolveCodingCredentials(t *testing.T) {
@@ -113,8 +113,8 @@ func TestRunnerResolveCodingCredentials(t *testing.T) {
 	useEnv('CODING_WEAVIN_PASSWORD', 'foo')
 	useEnv('CODING_WEAVIN_INFRA_PASSWORD', 'world')
 	`)
-	r.codingValuesTeam = "weavin"
-	r.codingValuesProject = "infra"
+	r.state.coding.values.team = "weavin"
+	r.state.coding.values.project = "infra"
 	username, password := r.resolveCodingCredentials()
 	require.Equal(t, "hello", username)
 	require.Equal(t, "world", password)

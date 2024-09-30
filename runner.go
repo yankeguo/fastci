@@ -27,32 +27,47 @@ type Runner struct {
 
 	tempDirs []string
 
-	registry string
-	image    string
-	profile  string
-	version  string
+	state struct {
+		registry string
+		image    string
+		profile  string
+		version  string
 
-	script      string
-	scriptShell []string
+		script struct {
+			path  string
+			shell []string
+		}
 
-	dockerfile    string
-	dockerContext string
+		docker struct {
+			dockerConfigPath string
 
-	workloadNamespace string
-	workloadName      string
-	workloadKind      string
-	workloadContainer string
-	workloadInit      bool
+			dockerfilePath string
+			context        string
+		}
 
-	codingValuesTeam    string
-	codingValuesProject string
-	codingValuesRepo    string
-	codingValuesBranch  string
-	codingValuesFile    string
-	codingValuesUpdate  otto.Value
+		kubernetes struct {
+			kubeconfigPath string
 
-	dockerConfig string
-	kubeconfig   string
+			workload struct {
+				namespace string
+				name      string
+				kind      string
+				container string
+				init      bool
+			}
+		}
+
+		coding struct {
+			values struct {
+				team    string
+				project string
+				repo    string
+				branch  string
+				file    string
+				update  otto.Value
+			}
+		}
+	}
 }
 
 func NewRunner() *Runner {
@@ -245,12 +260,12 @@ func (r *Runner) useDeployer2(call otto.FunctionCall) otto.Value {
 }
 
 func (r *Runner) runScript(call otto.FunctionCall) otto.Value {
-	shell := r.scriptShell
+	shell := r.state.script.shell
 	if len(shell) == 0 {
 		shell = []string{"/bin/bash"}
 	}
 
-	f := rg.Must(os.OpenFile(r.script, os.O_RDONLY, 0))
+	f := rg.Must(os.OpenFile(r.state.script.path, os.O_RDONLY, 0))
 	defer f.Close()
 
 	cmd := exec.Command(shell[0], shell[1:]...)
@@ -276,29 +291,29 @@ func (r *Runner) runDockerPush(call otto.FunctionCall) otto.Value {
 func (r *Runner) useKubernetesWorkload(call otto.FunctionCall) otto.Value {
 	if arg := call.Argument(0); arg.IsObject() {
 		obj := arg.Object()
-		r.loadObjectStringField(&r.workloadNamespace, obj, "namespace")
-		r.loadObjectStringField(&r.workloadName, obj, "name")
-		r.loadObjectStringField(&r.workloadKind, obj, "kind")
-		r.loadObjectStringField(&r.workloadContainer, obj, "container")
-		r.loadObjectBoolField(&r.workloadInit, obj, "init")
+		r.loadObjectStringField(&r.state.kubernetes.workload.namespace, obj, "namespace")
+		r.loadObjectStringField(&r.state.kubernetes.workload.name, obj, "name")
+		r.loadObjectStringField(&r.state.kubernetes.workload.kind, obj, "kind")
+		r.loadObjectStringField(&r.state.kubernetes.workload.container, obj, "container")
+		r.loadObjectBoolField(&r.state.kubernetes.workload.init, obj, "init")
 	}
 	return rg.Must(r.createPlainObject(map[string]any{
-		"namespace": r.workloadNamespace,
-		"name":      r.workloadName,
-		"kind":      r.workloadKind,
-		"container": r.workloadContainer,
-		"init":      r.workloadInit,
+		"namespace": r.state.kubernetes.workload.namespace,
+		"name":      r.state.kubernetes.workload.name,
+		"kind":      r.state.kubernetes.workload.kind,
+		"container": r.state.kubernetes.workload.container,
+		"init":      r.state.kubernetes.workload.init,
 	}))
 }
 
 func (r *Runner) resolveCodingCredentials() (username string, password string) {
 	var parts []string
-	if r.codingValuesTeam != "" {
-		parts = append(parts, SanitizeEnvName(r.codingValuesTeam))
-		if r.codingValuesProject != "" {
-			parts = append(parts, SanitizeEnvName(r.codingValuesProject))
-			if r.codingValuesRepo != "" {
-				parts = append(parts, SanitizeEnvName(r.codingValuesRepo))
+	if r.state.coding.values.team != "" {
+		parts = append(parts, SanitizeEnvName(r.state.coding.values.team))
+		if r.state.coding.values.project != "" {
+			parts = append(parts, SanitizeEnvName(r.state.coding.values.project))
+			if r.state.coding.values.repo != "" {
+				parts = append(parts, SanitizeEnvName(r.state.coding.values.repo))
 			}
 		}
 	}
@@ -334,20 +349,20 @@ func (r *Runner) resolveCodingCredentials() (username string, password string) {
 func (r *Runner) useCodingValues(call otto.FunctionCall) otto.Value {
 	if arg := call.Argument(0); arg.IsObject() {
 		obj := arg.Object()
-		r.loadObjectStringField(&r.codingValuesTeam, obj, "team")
-		r.loadObjectStringField(&r.codingValuesProject, obj, "project")
-		r.loadObjectStringField(&r.codingValuesRepo, obj, "repo")
-		r.loadObjectStringField(&r.codingValuesBranch, obj, "branch")
-		r.loadObjectStringField(&r.codingValuesFile, obj, "file")
-		r.loadObjectFunctionField(&r.codingValuesUpdate, obj, "update")
+		r.loadObjectStringField(&r.state.coding.values.team, obj, "team")
+		r.loadObjectStringField(&r.state.coding.values.project, obj, "project")
+		r.loadObjectStringField(&r.state.coding.values.repo, obj, "repo")
+		r.loadObjectStringField(&r.state.coding.values.branch, obj, "branch")
+		r.loadObjectStringField(&r.state.coding.values.file, obj, "file")
+		r.loadObjectFunctionField(&r.state.coding.values.update, obj, "update")
 	}
 	return rg.Must(r.createPlainObject(map[string]any{
-		"team":    r.codingValuesTeam,
-		"project": r.codingValuesProject,
-		"repo":    r.codingValuesRepo,
-		"branch":  r.codingValuesBranch,
-		"file":    r.codingValuesFile,
-		"update":  r.codingValuesUpdate,
+		"team":    r.state.coding.values.team,
+		"project": r.state.coding.values.project,
+		"repo":    r.state.coding.values.repo,
+		"branch":  r.state.coding.values.branch,
+		"file":    r.state.coding.values.file,
+		"update":  r.state.coding.values.update,
 	}))
 }
 
@@ -382,15 +397,15 @@ func (r *Runner) setup() (err error) {
 	r.vm.Set("useEnv", r.createGetterSetterForObject(r.env, "env"))
 	r.vm.Set("useDeployer1", r.useDeployer1)
 	r.vm.Set("useDeployer2", r.useDeployer2)
-	r.vm.Set("useRegistry", r.createGetterSetterForString(&r.registry, "registry"))
-	r.vm.Set("useImage", r.createGetterSetterForString(&r.image, "image"))
-	r.vm.Set("useProfile", r.createGetterSetterForString(&r.profile, "profile"))
-	r.vm.Set("useVersion", r.createGetterSetterForString(&r.version, "version"))
-	r.vm.Set("useDockerConfig", r.createGetterSetterForLongString(&r.dockerConfig, "docker config", func(buf []byte) (out string, err error) {
+	r.vm.Set("useRegistry", r.createGetterSetterForString(&r.state.registry, "registry"))
+	r.vm.Set("useImage", r.createGetterSetterForString(&r.state.image, "image"))
+	r.vm.Set("useProfile", r.createGetterSetterForString(&r.state.profile, "profile"))
+	r.vm.Set("useVersion", r.createGetterSetterForString(&r.state.version, "version"))
+	r.vm.Set("useDockerConfig", r.createGetterSetterForLongString(&r.state.docker.dockerConfigPath, "docker config", func(buf []byte) (out string, err error) {
 		_, out, err = r.createTempFile("config.json", bytes.TrimSpace(buf))
 		return
 	}))
-	r.vm.Set("useKubeconfig", r.createGetterSetterForLongString(&r.kubeconfig, "kubeconfig", func(buf []byte) (out string, err error) {
+	r.vm.Set("useKubeconfig", r.createGetterSetterForLongString(&r.state.kubernetes.kubeconfigPath, "kubeconfig", func(buf []byte) (out string, err error) {
 		buf = bytes.TrimSpace(buf)
 		if bytes.HasPrefix(buf, []byte("{")) {
 			if buf, err = ConvertJSONToYAML(buf); err != nil {
@@ -400,14 +415,14 @@ func (r *Runner) setup() (err error) {
 		out, _, err = r.createTempFile("kubeconfig.yaml", buf)
 		return
 	}))
-	r.vm.Set("useScript", r.createGetterSetterForLongString(&r.script, "script", func(buf []byte) (out string, err error) {
+	r.vm.Set("useScript", r.createGetterSetterForLongString(&r.state.script.path, "script", func(buf []byte) (out string, err error) {
 		out, _, err = r.createTempFile("script.sh", bytes.TrimSpace(buf))
 		return
 	}))
-	r.vm.Set("useScriptShell", r.createGetterSetterForStringSlice(&r.scriptShell, "script shell"))
+	r.vm.Set("useScriptShell", r.createGetterSetterForStringSlice(&r.state.script.shell, "script shell"))
 	r.vm.Set("runScript", r.runScript)
-	r.vm.Set("useDockerfile", r.createGetterSetterForString(&r.dockerfile, "dockerfile"))
-	r.vm.Set("useDockerContext", r.createGetterSetterForString(&r.dockerContext, "docker context"))
+	r.vm.Set("useDockerfile", r.createGetterSetterForString(&r.state.docker.dockerfilePath, "dockerfile"))
+	r.vm.Set("useDockerContext", r.createGetterSetterForString(&r.state.docker.context, "docker context"))
 	r.vm.Set("runDockerBuild", r.runDockerBuild)
 	r.vm.Set("runDockerPush", r.runDockerPush)
 	r.vm.Set("useKubernetesWorkload", r.useKubernetesWorkload)
@@ -427,7 +442,7 @@ func (r *Runner) clear() {
 	}
 	r.tempDirs = nil
 	r.env = nil
-	r.codingValuesUpdate = otto.Value{}
+	r.state.coding.values.update = otto.Value{} // reset to undefined
 	r.vm = nil
 }
 
