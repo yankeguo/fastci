@@ -2,9 +2,12 @@
 
 An intuitive CLI tool that encompasses the entire cycle of `build`, `package`, `push`, and `deploy` operations.
 
+[![Go](https://github.com/yankeguo/fastci/actions/workflows/go.yml/badge.svg)](https://github.com/yankeguo/fastci/actions/workflows/go.yml)
+[![codecov](https://codecov.io/gh/yankeguo/fastci/graph/badge.svg?token=91hTz3G4x3)](https://codecov.io/gh/yankeguo/fastci)
+
 ## Usage
 
-`fastci` is desiged to read the `JavaScript` pipeline from `stdin`, and execute in a single process.
+`fastci` is designed to read the `JavaScript` pipeline from `stdin`, and execute in a single process.
 
 ```shell
 cat <<-EOF | fastci
