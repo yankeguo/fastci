@@ -69,11 +69,8 @@ func (p *Pipeline) runScript(call otto.FunctionCall) otto.Value {
 	return otto.NullValue()
 }
 
-func (p *Pipeline) setupEnv(vm *otto.Otto) {
+func (p *Pipeline) Setup(vm *otto.Otto) {
 	vm.Set("env", p.Env)
-}
-
-func (p *Pipeline) setupFunctions(vm *otto.Otto) {
 	vm.Set("useDeployer1", p.useDeployer1)
 	vm.Set("useDeployer2", p.useDeployer2)
 	vm.Set("useRegistry", CreateFunctionGetSetString(&p.Registry, "registry"))
@@ -100,11 +97,6 @@ func (p *Pipeline) setupFunctions(vm *otto.Otto) {
 	}))
 	vm.Set("useScriptShell", CreateFunctionGetSetString(&p.ScriptShell, "script shell"))
 	vm.Set("runScript", p.runScript)
-}
-
-func (p *Pipeline) Setup(vm *otto.Otto) {
-	p.setupEnv(vm)
-	p.setupFunctions(vm)
 }
 
 func (p *Pipeline) Cleanup() {
