@@ -10,6 +10,40 @@ import (
 	"github.com/yankeguo/rg"
 )
 
+func CreateFunctionObjectGetSet(out *otto.Object, name string) func(call otto.FunctionCall) otto.Value {
+	return func(call otto.FunctionCall) otto.Value {
+		if len(call.ArgumentList) == 0 {
+			return out.Value()
+		} else if len(call.ArgumentList) == 1 {
+			key := call.Argument(0).String()
+			return rg.Must(out.Get(key))
+		} else {
+			key, val := call.Argument(0), call.Argument(1)
+			if key.IsString() {
+				out.Set(key.String(), val)
+				log.Printf("set env: %s", key.String())
+			} else {
+				panic("set env failed, key should be string")
+			}
+			return val
+		}
+	}
+}
+
+func CreateFunctionGetSetStringSlice(out *[]string, name string) func(call otto.FunctionCall) otto.Value {
+	return func(call otto.FunctionCall) otto.Value {
+		var newValues []string
+		for _, val := range call.ArgumentList {
+			newValues = append(newValues, val.String())
+		}
+		if len(newValues) > 0 {
+			*out = newValues
+			log.Printf("use %s: %v", name, *out)
+		}
+		return rg.Must(otto.ToValue(*out))
+	}
+}
+
 func CreateFunctionGetSetString(out *string, name string) func(call otto.FunctionCall) otto.Value {
 	return func(call otto.FunctionCall) otto.Value {
 		if val := call.Argument(0); val.IsString() {

@@ -160,6 +160,34 @@ Execute the previous configured script in the pipeline.
 doBuild();
 ```
 
+#### `usePackageDockerfile(dockerfile)`
+
+Get or set the Dockerfile for the package operation.
+
+```javascript
+usePackageDockerfile([
+  "FROM ubuntu:24.04",
+  'RUN echo "Hello, World!"',
+  'CMD ["echo", "Hello, World!"]',
+]);
+```
+
+#### `usePackageContext(context)`
+
+Get or set the context for the package operation.
+
+```javascript
+usePackageContext("./docker/");
+```
+
+#### `doPackage()`
+
+Package the container image with the previous configured Dockerfile.
+
+```javascript
+doPackage();
+```
+
 ## Credits
 
 GUO YANKE, MIT License
