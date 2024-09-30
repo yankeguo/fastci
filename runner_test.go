@@ -18,7 +18,7 @@ func runnerForTest(t *testing.T, script string) *Runner {
 	return r
 }
 
-func clearRunnerForTest(t *testing.T, r *Runner) {
+func clearRunnerForTest(_ *testing.T, r *Runner) {
 	r.noClear = false
 	r.clear()
 }
@@ -83,12 +83,12 @@ func TestRunnerKubeconfig(t *testing.T) {
 	require.Equal(t, "hello: world\n", string(buf))
 }
 
-func TestRunnerBuild(t *testing.T) {
-	runnerForTest(t, `useBuildScript(
+func TestRunnerScript(t *testing.T) {
+	runnerForTest(t, `useScript(
 	'echo hello',
 	'sleep 1',
 	'echo world'
-	);doBuild();`)
+	);runScript();`)
 }
 
 func TestRunnerKubernetesWorkload(t *testing.T) {

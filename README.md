@@ -12,7 +12,7 @@ An intuitive CLI tool that encompasses the entire cycle of `build`, `package`, `
 ```shell
 cat <<-EOF | fastci
 useDeployer2("eco-staging", "mobile/deployer2.yml")
-doBuild()
+runScript()
 EOF
 ```
 
@@ -167,15 +167,15 @@ useKubeconfig();
 
 ### Build Functions
 
-#### `useBuildScript(buildScript)`
+#### `useScript(script)`
 
 This function is **Long Text Supported**
 
-Get or set the build script for the pipeline.
+Get or set the current script for the pipeline.
 
 ```javascript
 // script content
-useBuildScript(
+useScript(
   "\
 #!/bin/bash\n\
 echo 'Building...'\n\
@@ -183,62 +183,62 @@ echo 'Building...'\n\
 );
 ```
 
-#### `useBuildShell(shell)`
+#### `useScriptShell(shell)`
 
-Get or set the shell for the build script.
+Get or set the shell for the current script.
 
 ```javascript
-useBuildShell("zsh");
+useScriptShell("zsh");
 ```
 
-#### `doBuild()`
+#### `runScript()`
 
-Execute the previous configured build script in the pipeline.
+Execute the current script in the pipeline.
 
 ```javascript
-doBuild();
+runScript();
 ```
 
 ### Package Functions
 
-#### `usePackageDockerfile(dockerfile)`
+#### `useDockerfile(dockerfile)`
 
 This function is **Long Text Supported**
 
-Get or set the Dockerfile for the package operation.
+Get or set the current Dockerfile.
 
 ```javascript
-usePackageDockerfile([
+useDockerfile([
   "FROM ubuntu:24.04",
   'RUN echo "Hello, World!"',
   'CMD ["echo", "Hello, World!"]',
 ]);
 ```
 
-#### `usePackageContext(context)`
+#### `useDockerContext(context)`
 
-Get or set the context for the package operation.
+Get or set the current docker context.
 
 ```javascript
-usePackageContext("./docker/");
+useDockerContext("./docker/");
 ```
 
-#### `doPackage()`
+#### `runDockerBuild()`
 
-Package the container image with the previous configured Dockerfile.
+Package the container image with docker build command.
 
 ```javascript
-doPackage();
+runDockerBuild();
 ```
 
 ### Publish Functions
 
-#### `doPublish()`
+#### `runDockerPush()`
 
 Push the container image to the registry.
 
 ```javascript
-doPublish();
+runDockerPush();
 ```
 
 ### Deploy Functions
@@ -279,12 +279,12 @@ useKubernetesWorkload({
 });
 ```
 
-#### `doDeployKubernetesWorkload()`
+#### `deployKubernetesWorkload()`
 
 Deploy the container image to the Kubernetes cluster.
 
 ```javascript
-doDeployKubernetesWorkload();
+deployKubernetesWorkload();
 ```
 
 #### `useCodingValues(opts)`
@@ -330,12 +330,12 @@ useCodingValues({
 });
 ```
 
-#### `doDeployCodingValues(options)`
+#### `deployCodingValues(options)`
 
 Deploy the container image to patch `coding.net` repository values file.
 
 ```javascript
-doDeployCodingValues();
+deployCodingValues();
 ```
 
 `fastci` will search `coding.net` credentials from the environment variables, in order:

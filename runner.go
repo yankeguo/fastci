@@ -32,11 +32,11 @@ type Runner struct {
 	profile  string
 	version  string
 
-	buildScriptFile string
-	buildShell      []string
+	script      string
+	scriptShell []string
 
-	packageDockerfileFile string
-	packageContext        string
+	dockerfile    string
+	dockerContext string
 
 	workloadNamespace string
 	workloadName      string
@@ -244,13 +244,13 @@ func (r *Runner) useDeployer2(call otto.FunctionCall) otto.Value {
 	return otto.NullValue()
 }
 
-func (r *Runner) doBuild(call otto.FunctionCall) otto.Value {
-	shell := r.buildShell
+func (r *Runner) runScript(call otto.FunctionCall) otto.Value {
+	shell := r.scriptShell
 	if len(shell) == 0 {
 		shell = []string{"/bin/bash"}
 	}
 
-	f := rg.Must(os.OpenFile(r.buildScriptFile, os.O_RDONLY, 0))
+	f := rg.Must(os.OpenFile(r.script, os.O_RDONLY, 0))
 	defer f.Close()
 
 	cmd := exec.Command(shell[0], shell[1:]...)
@@ -263,12 +263,12 @@ func (r *Runner) doBuild(call otto.FunctionCall) otto.Value {
 	return otto.NullValue()
 }
 
-func (r *Runner) doPackage(call otto.FunctionCall) otto.Value {
+func (r *Runner) runDockerBuild(call otto.FunctionCall) otto.Value {
 	//TODO: implement package
 	return otto.NullValue()
 }
 
-func (r *Runner) doPublish(call otto.FunctionCall) otto.Value {
+func (r *Runner) runDockerPush(call otto.FunctionCall) otto.Value {
 	//TODO: implement publish
 	return otto.NullValue()
 }
@@ -351,6 +351,14 @@ func (r *Runner) useCodingValues(call otto.FunctionCall) otto.Value {
 	}))
 }
 
+func (r *Runner) deployKubernetesWorkload(call otto.FunctionCall) otto.Value {
+	return otto.NullValue()
+}
+
+func (r *Runner) deployCodingValues(call otto.FunctionCall) otto.Value {
+	return otto.NullValue()
+}
+
 func (r *Runner) setup() (err error) {
 	r.vm = otto.New()
 
@@ -392,18 +400,20 @@ func (r *Runner) setup() (err error) {
 		out, _, err = r.createTempFile("kubeconfig.yaml", buf)
 		return
 	}))
-	r.vm.Set("useBuildScript", r.createGetterSetterForLongString(&r.buildScriptFile, "build script", func(buf []byte) (out string, err error) {
-		out, _, err = r.createTempFile("build.sh", bytes.TrimSpace(buf))
+	r.vm.Set("useScript", r.createGetterSetterForLongString(&r.script, "script", func(buf []byte) (out string, err error) {
+		out, _, err = r.createTempFile("script.sh", bytes.TrimSpace(buf))
 		return
 	}))
-	r.vm.Set("useBuildShell", r.createGetterSetterForStringSlice(&r.buildShell, "build script shell"))
-	r.vm.Set("doBuild", r.doBuild)
-	r.vm.Set("usePackageDockerfile", r.createGetterSetterForString(&r.packageDockerfileFile, "package dockerfile"))
-	r.vm.Set("usePackageContext", r.createGetterSetterForString(&r.packageContext, "package context"))
-	r.vm.Set("doPackage", r.doPackage)
-	r.vm.Set("doPublish", r.doPublish)
+	r.vm.Set("useScriptShell", r.createGetterSetterForStringSlice(&r.scriptShell, "script shell"))
+	r.vm.Set("runScript", r.runScript)
+	r.vm.Set("useDockerfile", r.createGetterSetterForString(&r.dockerfile, "dockerfile"))
+	r.vm.Set("useDockerContext", r.createGetterSetterForString(&r.dockerContext, "docker context"))
+	r.vm.Set("runDockerBuild", r.runDockerBuild)
+	r.vm.Set("runDockerPush", r.runDockerPush)
 	r.vm.Set("useKubernetesWorkload", r.useKubernetesWorkload)
 	r.vm.Set("useCodingValues", r.useCodingValues)
+	r.vm.Set("deployKubernetesWorkload", r.deployKubernetesWorkload)
+	r.vm.Set("deployCodingValues", r.deployCodingValues)
 	return
 }
 
