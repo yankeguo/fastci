@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
+	"io"
 	"log"
 	"os"
 
+	"github.com/yankeguo/fastci"
 	"github.com/yankeguo/rg"
 )
 
@@ -17,4 +20,8 @@ func main() {
 		os.Exit(1)
 	}()
 	defer rg.Guard(&err)
+
+	p := fastci.NewPipeline()
+	script := rg.Must(io.ReadAll(os.Stdin))
+	err = p.Do(context.Background(), string(script))
 }
