@@ -9,7 +9,7 @@ An intuitive CLI tool that encompasses the entire cycle of `build`, `package`, `
 ```shell
 cat <<-EOF | fastci
 useDeployer2("eco-staging", "mobile/deployer2.yml")
-useJenkins()
+runScript()
 EOF
 ```
 
@@ -33,6 +33,11 @@ Use the `deployer1` preset and manifest, for compatibility with the legacy toolc
 
 ```javascript
 useDeployer1("eco-staging", "deployer.yml");
+useDeployer1("eco-staging");
+useDeployer1({
+  preset: "eco-staging",
+  manifest: "deployer.yml",
+});
 ```
 
 #### `useDeployer2(preset, manifest="deployer.yml")`
@@ -41,6 +46,11 @@ Use the `deployer2` preset and manifest, for compatibility with the legacy toolc
 
 ```javascript
 useDeployer2("eco-staging", "mobile/deployer2.yml");
+useDeployer2("eco-staging");
+useDeployer2({
+  preset: "eco-staging",
+  manifest: "deployer.yml",
+});
 ```
 
 #### `useRegistry(registry)`
@@ -75,28 +85,25 @@ Get or set the container version for the pipeline.
 useVersion("1.0.0");
 ```
 
-#### `useJenkins()`
-
-Use the `Jenkins` environment variables for `image`, `profile` and `version`.
-
-```javascript
-useJenkins();
-```
-
 #### `useDockerConfig(dockerConfig)`
 
 Set the Docker configuration for the pipeline.
 
 ```javascript
 useDockerConfig({
-  auths: {
-    "registry.cn-hangzhou.aliyuncs.com": {
-      username: "username",
-      password: "password",
+  content: {
+    auths: {
+      "registry.cn-hangzhou.aliyuncs.com": {
+        username: "username",
+        password: "password",
+      },
     },
   },
+  // content: '',
+  // base64: '',
+  // path: '',
 });
-useDockerConfig("/path/to/docker/config/dir");
+useDockerConfig({ path: "/path/to/docker/config/dir" });
 ```
 
 #### `useKubeconfig(kubeconfig)`
@@ -104,54 +111,50 @@ useDockerConfig("/path/to/docker/config/dir");
 Set the Kubernetes configuration for the pipeline.
 
 ```javascript
-useKubeconfig({ apiVersion: "v1", clusters: [], contexts: [], users: [] });
-useKubeconfig("/path/to/kubeconfig/file");
+useKubeconfig({
+  content: { apiVersion: "v1", clusters: [], contexts: [], users: [] },
+  // content: '',
+  // base64: '',
+  // path: '',
+});
+useKubeconfig({ path: "/path/to/kubeconfig/file" });
 ```
 
-#### `useBuildScript(script)`
+#### `useScript(script)`
 
 Get or set the build script for the pipeline.
 
 ```javascript
 // script content
-useBuildScript(
+useScript(
   "\
 #!/bin/bash\n\
 echo 'Building...'\n\
 ",
 );
+
+// script object
+useScript({
+  // content: '',
+  // base64: '',
+  // path: '',
+});
 ```
 
-#### `useBuildScriptFile(scriptFile)`
+#### `useScriptShell(shell)`
 
-Get or set the build script file for the pipeline.
+Get or set the shell for the build script.
 
 ```javascript
-useBuildScriptFile("build.sh");
+useScriptShell("zsh");
 ```
 
-#### `useBuildScriptShell(shell)`
+#### `runScript()`
 
-Get or set the build script shell for the pipeline.
-
-```javascript
-useBuildScriptShell("zsh");
-```
-
-#### `useBuildDir(buildDir)`
-
-Get or set the build directory for the pipeline.
+Execute the previous configured script in the pipeline.
 
 ```javascript
-useBuildDir("build");
-```
-
-#### `doBuild()`
-
-Execute the build script in the build directory.
-
-```javascript
-doBuild();
+runScript();
 ```
 
 ## Credits

@@ -2,20 +2,68 @@ package fastci
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/yankeguo/rg"
 )
 
-func TestPipeline(t *testing.T) {
-	for _, entry := range rg.Must(os.ReadDir(filepath.Join("testdata", "pipelines"))) {
-		t.Run(entry.Name(), func(t *testing.T) {
-			script := rg.Must(os.ReadFile(filepath.Join("testdata", "pipelines", entry.Name())))
-			err := NewPipeline().Do(context.Background(), string(script))
-			require.NoError(t, err)
-		})
-	}
+const (
+	scriptBasic = `
+console.log("\
+HOME=\
+"+ env.HOME)
+	`
+)
+
+func TestPipelineBasic(t *testing.T) {
+	p := NewPipeline()
+	err := p.Do(context.Background(), scriptBasic)
+	require.NoError(t, err)
+}
+
+const (
+	scriptTemp = `
+useDockerConfig({
+    content: {
+        auths: {
+            "https://index.docker.io/v1/": {}
+        }
+    }
+})
+
+if (!useDockerConfig()) {
+    throw new Error('dockerconfig() failed')
+}
+
+useKubeconfig("\
+apiVersion: 'v1'\n\
+")
+
+if (!useKubeconfig()) {
+    throw new Error('kubeconfig() failed')
+}
+	`
+)
+
+func TestPipelineTemporaryFiles(t *testing.T) {
+	p := NewPipeline()
+	err := p.Do(context.Background(), scriptTemp)
+	require.NoError(t, err)
+}
+
+const (
+	scriptScript = `
+useScript([
+	'echo hello',
+	'sleep 1',
+	'echo world',
+]);
+runScript();
+`
+)
+
+func TestPipelineScript(t *testing.T) {
+	p := NewPipeline()
+	err := p.Do(context.Background(), scriptScript)
+	require.NoError(t, err)
 }

@@ -1,32 +1,32 @@
 package fastci
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/robertkrimen/otto"
 	"github.com/yankeguo/rg"
-	"gopkg.in/yaml.v3"
 )
 
 type Pipeline struct {
 	Env map[string]string
 
 	TemporaryDirectories []string
-	TemporaryFiles       []string
 
 	Registry string
 	Image    string
 	Profile  string
 	Version  string
 
-	BuildDir         string
-	BuildScriptShell string
-	BuildScriptFile  string
+	ScriptFile  string
+	ScriptShell string
 
 	DockerConfig string
 	Kubeconfig   string
@@ -48,6 +48,68 @@ func NewPipeline() *Pipeline {
 	return p
 }
 
+func (p *Pipeline) useStringVar(out *string, name string, call otto.FunctionCall) otto.Value {
+	if val := call.Argument(0); val.IsString() {
+		*out = val.String()
+		log.Printf("use %s: %s", name, *out)
+	}
+	return rg.Must(otto.ToValue(*out))
+}
+
+func (p *Pipeline) useContentOrPathVar(out *string, name string, fnSave func(buf []byte) (out string, err error), call otto.FunctionCall) otto.Value {
+	var (
+		newContent []byte
+		newPath    string
+	)
+
+	if val := call.Argument(0); val.IsString() {
+		newContent = []byte(val.String())
+	} else if val.IsObject() {
+		buf := rg.Must(val.Object().MarshalJSON())
+
+		var (
+			lines []string
+			data  struct {
+				Content json.RawMessage `json:"content"`
+				Base64  string          `json:"base64"`
+				Path    string          `json:"path"`
+			}
+		)
+
+		if err := json.Unmarshal(buf, &lines); err == nil {
+			newContent = []byte(strings.Join(lines, "\n"))
+		} else if err = json.Unmarshal(buf, &data); err == nil {
+			if data.Path != "" {
+				newPath = data.Path
+			} else {
+				if len(data.Content) > 0 {
+					var s string
+					if err := json.Unmarshal(data.Content, &s); err == nil {
+						// string
+						newContent = []byte(s)
+					} else {
+						// object (raw)
+						newContent = data.Content
+					}
+				} else if data.Base64 != "" {
+					// base64
+					newContent = rg.Must(base64.StdEncoding.DecodeString(data.Base64))
+				}
+			}
+		}
+	}
+
+	if newPath != "" {
+		*out = newPath
+		log.Println("use", name, "from", newPath)
+	} else if len(newContent) > 0 {
+		*out = rg.Must(fnSave(newContent))
+		log.Println("use", name, "from content")
+	}
+
+	return rg.Must(otto.ToValue(*out))
+}
+
 func (p *Pipeline) useDeployer1(call otto.FunctionCall) otto.Value {
 	// TODO: implement deployer1
 	return otto.NullValue()
@@ -59,122 +121,70 @@ func (p *Pipeline) useDeployer2(call otto.FunctionCall) otto.Value {
 }
 
 func (p *Pipeline) useRegistry(call otto.FunctionCall) otto.Value {
-	if len(call.ArgumentList) == 0 {
-		return rg.Must(otto.ToValue(p.Registry))
-	}
-	p.Registry = call.Argument(0).String()
-	log.Println("use registry:", p.Registry)
-	return otto.NullValue()
-}
-
-func (p *Pipeline) useJenkins(call otto.FunctionCall) otto.Value {
-	// TODO: implement jenkins
-	return otto.NullValue()
-}
-
-func (p *Pipeline) useDockerConfig(call otto.FunctionCall) otto.Value {
-	if len(call.ArgumentList) == 0 {
-		return rg.Must(otto.ToValue(p.DockerConfig))
-	}
-	val := call.Argument(0)
-	if val.IsObject() {
-		buf := rg.Must(val.Object().MarshalJSON())
-		dir := rg.Must(p.createTemporaryDirectory())
-		rg.Must0(os.WriteFile(filepath.Join(dir, "config.json"), buf, 0640))
-		p.DockerConfig = dir
-		log.Println("use docker config:", p.DockerConfig)
-	} else if val.IsString() {
-		p.DockerConfig = val.String()
-		log.Print("use docker config:", p.DockerConfig)
-	}
-	return otto.NullValue()
-}
-
-func (p *Pipeline) useKubeconfig(call otto.FunctionCall) otto.Value {
-	if len(call.ArgumentList) == 0 {
-		return rg.Must(otto.ToValue(p.Kubeconfig))
-	}
-	val := call.Argument(0)
-	if val.IsObject() {
-		buf := rg.Must(val.Object().MarshalJSON())
-		var m map[string]any
-		rg.Must0(json.Unmarshal(buf, &m))
-		buf = rg.Must(yaml.Marshal(m))
-		p.Kubeconfig = rg.Must(p.createTemporaryFile(buf))
-	} else if val.IsString() {
-		p.Kubeconfig = val.String()
-	}
-	log.Println("use kubeconfig:", p.Kubeconfig)
-	return otto.NullValue()
+	return p.useStringVar(&p.Registry, "registry", call)
 }
 
 func (p *Pipeline) useImage(call otto.FunctionCall) otto.Value {
-	if len(call.ArgumentList) == 0 {
-		return rg.Must(otto.ToValue(p.Image))
-	}
-	p.Image = call.Argument(0).String()
-	log.Println("use image:", p.Image)
-	return otto.NullValue()
+	return p.useStringVar(&p.Image, "image", call)
 }
 
 func (p *Pipeline) useProfile(call otto.FunctionCall) otto.Value {
-	if len(call.ArgumentList) == 0 {
-		return rg.Must(otto.ToValue(p.Profile))
-	}
-	p.Profile = call.Argument(0).String()
-	log.Println("use profile:", p.Profile)
-	return otto.NullValue()
+	return p.useStringVar(&p.Profile, "profile", call)
 }
 
 func (p *Pipeline) useVersion(call otto.FunctionCall) otto.Value {
-	if len(call.ArgumentList) == 0 {
-		return rg.Must(otto.ToValue(p.Version))
-	}
-	p.Version = call.Argument(0).String()
-	log.Println("use version:", p.Version)
-	return otto.NullValue()
+	return p.useStringVar(&p.Version, "version", call)
 }
 
-func (p *Pipeline) useBuildScript(call otto.FunctionCall) otto.Value {
-	if len(call.ArgumentList) == 0 {
-		return rg.Must(otto.ToValue(p.BuildScriptFile))
-	}
-	script := call.Argument(0).String()
-	p.BuildScriptFile = rg.Must(p.createTemporaryFile([]byte(script)))
-	log.Println("use build script:", script)
-	return otto.NullValue()
+func (p *Pipeline) useDockerConfig(call otto.FunctionCall) otto.Value {
+	return p.useContentOrPathVar(&p.DockerConfig, "docker config", func(buf []byte) (out string, err error) {
+		buf = bytes.TrimSpace(buf)
+		if _, out, err = p.createTemporaryFile("config.json", buf); err != nil {
+			return
+		}
+		return
+	}, call)
 }
 
-func (p *Pipeline) useBuildScriptFile(call otto.FunctionCall) otto.Value {
-	if len(call.ArgumentList) == 0 {
-		return rg.Must(otto.ToValue(p.BuildScriptFile))
-	}
-	file := call.Argument(0).String()
-	p.BuildScriptFile = file
-	log.Println("use build script file:", p.BuildScriptFile)
-	return otto.NullValue()
+func (p *Pipeline) useKubeconfig(call otto.FunctionCall) otto.Value {
+	return p.useContentOrPathVar(&p.Kubeconfig, "kubeconfig", func(buf []byte) (out string, err error) {
+		buf = bytes.TrimSpace(buf)
+		if bytes.HasPrefix(buf, []byte("{")) {
+			if buf, err = ConvertJSONToYAML(buf); err != nil {
+				return
+			}
+		}
+		if out, _, err = p.createTemporaryFile("kubeconfig.yaml", buf); err != nil {
+			return
+		}
+		return
+	}, call)
 }
 
-func (p *Pipeline) useBuildScriptShell(call otto.FunctionCall) otto.Value {
-	if len(call.ArgumentList) == 0 {
-		return rg.Must(otto.ToValue(p.BuildScriptShell))
-	}
-	p.BuildScriptShell = call.Argument(0).String()
-	log.Println("use build script shell:", p.BuildScriptShell)
-	return otto.NullValue()
+func (p *Pipeline) useScript(call otto.FunctionCall) otto.Value {
+	return p.useContentOrPathVar(&p.ScriptFile, "script", func(buf []byte) (out string, err error) {
+		buf = bytes.TrimSpace(buf)
+		if out, _, err = p.createTemporaryFile("script.sh", buf); err != nil {
+			return
+		}
+		return
+	}, call)
 }
 
-func (p *Pipeline) useBuildDir(call otto.FunctionCall) otto.Value {
-	if len(call.ArgumentList) == 0 {
-		return rg.Must(otto.ToValue(p.BuildDir))
-	}
-	p.BuildDir = call.Argument(0).String()
-	log.Println("use build dir:", p.BuildDir)
-	return otto.NullValue()
+func (p *Pipeline) useScriptShell(call otto.FunctionCall) otto.Value {
+	return p.useStringVar(&p.ScriptShell, "script shell", call)
 }
 
-func (p *Pipeline) doBuild(call otto.FunctionCall) otto.Value {
-	//TODO: implement doBuild
+func (p *Pipeline) runScript(call otto.FunctionCall) otto.Value {
+	shell := p.ScriptShell
+	if shell == "" {
+		shell = "/bin/bash"
+	}
+	cmd := exec.Command(shell, p.ScriptFile)
+	cmd.Env = os.Environ()
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	rg.Must0(cmd.Run())
 	return otto.NullValue()
 }
 
@@ -189,14 +199,11 @@ func (p *Pipeline) setupFunctions(vm *otto.Otto) {
 	vm.Set("useImage", p.useImage)
 	vm.Set("useProfile", p.useProfile)
 	vm.Set("useVersion", p.useVersion)
-	vm.Set("useJenkins", p.useJenkins)
 	vm.Set("useDockerConfig", p.useDockerConfig)
 	vm.Set("useKubeconfig", p.useKubeconfig)
-	vm.Set("useBuildScript", p.useBuildScript)
-	vm.Set("useBuildScriptFile", p.useBuildScriptFile)
-	vm.Set("useBuildScriptShell", p.useBuildScriptShell)
-	vm.Set("useBuildDir", p.useBuildDir)
-	vm.Set("doBuild", p.doBuild)
+	vm.Set("useScript", p.useScript)
+	vm.Set("useScriptShell", p.useScriptShell)
+	vm.Set("runScript", p.runScript)
 }
 
 func (p *Pipeline) Setup(vm *otto.Otto) {
@@ -209,30 +216,26 @@ func (p *Pipeline) Cleanup() {
 		log.Println("remove temporary directory:", dir)
 		os.RemoveAll(dir)
 	}
-	for _, file := range p.TemporaryFiles {
-		log.Println("remove temporary file:", file)
-		os.Remove(file)
-	}
 }
 
 func (p *Pipeline) createTemporaryDirectory() (dir string, err error) {
 	defer rg.Guard(&err)
-	dir = rg.Must(os.MkdirTemp("", "fastci-*-dockerconfig"))
+	dir = rg.Must(os.MkdirTemp("", "fastci-*-tmp"))
 	p.TemporaryDirectories = append(p.TemporaryDirectories, dir)
 	return
 }
 
-func (p *Pipeline) createTemporaryFile(buf []byte) (file string, err error) {
+func (p *Pipeline) createTemporaryFile(filename string, content []byte) (file string, dir string, err error) {
 	defer rg.Guard(&err)
-	_file := rg.Must(os.CreateTemp("", "fastci-*-kubeconfig"))
-	defer _file.Close()
-	file = _file.Name()
-	p.TemporaryFiles = append(p.TemporaryFiles, file)
-	rg.Must(_file.Write(buf))
+	dir = rg.Must(p.createTemporaryDirectory())
+	file = filepath.Join(dir, filename)
+	rg.Must0(os.WriteFile(file, content, 0644))
 	return
 }
 
 func (p *Pipeline) Do(ctx context.Context, script string) (err error) {
+	defer rg.Guard(&err)
+
 	vm := otto.New()
 
 	p.Setup(vm)
