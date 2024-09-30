@@ -53,12 +53,12 @@ func TestPipelineTemporaryFiles(t *testing.T) {
 
 const (
 	scriptScript = `
-useScript([
+useBuildScript([
 	'echo hello',
 	'sleep 1',
 	'echo world',
 ]);
-runScript();
+doBuild();
 `
 )
 

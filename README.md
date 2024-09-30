@@ -12,7 +12,7 @@ An intuitive CLI tool that encompasses the entire cycle of `build`, `package`, `
 ```shell
 cat <<-EOF | fastci
 useDeployer2("eco-staging", "mobile/deployer2.yml")
-runScript()
+doBuild()
 EOF
 ```
 
@@ -123,13 +123,13 @@ useKubeconfig({
 useKubeconfig({ path: "/path/to/kubeconfig/file" });
 ```
 
-#### `useScript(script)`
+#### `useBuildScript(buildScript)`
 
 Get or set the build script for the pipeline.
 
 ```javascript
 // script content
-useScript(
+useBuildScript(
   "\
 #!/bin/bash\n\
 echo 'Building...'\n\
@@ -137,27 +137,27 @@ echo 'Building...'\n\
 );
 
 // script object
-useScript({
+useBuildScript({
   // content: '',
   // base64: '',
   // path: '',
 });
 ```
 
-#### `useScriptShell(shell)`
+#### `useBuildScriptShell(shell)`
 
 Get or set the shell for the build script.
 
 ```javascript
-useScriptShell("zsh");
+useBuildScriptShell("zsh");
 ```
 
-#### `runScript()`
+#### `doBuild()`
 
 Execute the previous configured script in the pipeline.
 
 ```javascript
-runScript();
+doBuild();
 ```
 
 ## Credits

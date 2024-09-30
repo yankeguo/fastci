@@ -23,8 +23,8 @@ type Pipeline struct {
 	Profile  string
 	Version  string
 
-	ScriptFile  string
-	ScriptShell string
+	BuildScriptFile  string
+	BuildScriptShell string
 
 	DockerConfig string
 	Kubeconfig   string
@@ -56,12 +56,12 @@ func (p *Pipeline) useDeployer2(call otto.FunctionCall) otto.Value {
 	return otto.NullValue()
 }
 
-func (p *Pipeline) runScript(call otto.FunctionCall) otto.Value {
-	shell := p.ScriptShell
+func (p *Pipeline) doBuild(call otto.FunctionCall) otto.Value {
+	shell := p.BuildScriptShell
 	if shell == "" {
 		shell = "/bin/bash"
 	}
-	cmd := exec.Command(shell, p.ScriptFile)
+	cmd := exec.Command(shell, p.BuildScriptFile)
 	cmd.Env = os.Environ()
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -91,12 +91,12 @@ func (p *Pipeline) Setup(vm *otto.Otto) {
 		out, _, err = p.createTemporaryFile("kubeconfig.yaml", buf)
 		return
 	}))
-	vm.Set("useScript", CreateFunctionGetSetPathOrContent(&p.ScriptFile, "script", func(buf []byte) (out string, err error) {
-		out, _, err = p.createTemporaryFile("script.sh", bytes.TrimSpace(buf))
+	vm.Set("useBuildScript", CreateFunctionGetSetPathOrContent(&p.BuildScriptFile, "build script", func(buf []byte) (out string, err error) {
+		out, _, err = p.createTemporaryFile("build.sh", bytes.TrimSpace(buf))
 		return
 	}))
-	vm.Set("useScriptShell", CreateFunctionGetSetString(&p.ScriptShell, "script shell"))
-	vm.Set("runScript", p.runScript)
+	vm.Set("useBuildScriptShell", CreateFunctionGetSetString(&p.BuildScriptShell, "build script shell"))
+	vm.Set("doBuild", p.doBuild)
 }
 
 func (p *Pipeline) Cleanup() {
