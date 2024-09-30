@@ -12,15 +12,15 @@ import (
 
 func runnerForTest(t *testing.T, script string) *Runner {
 	r := NewRunner()
-	r.noClear = true
+	r.skipClean = true
 	err := r.Execute(context.Background(), script)
 	require.NoError(t, err)
 	return r
 }
 
 func clearRunnerForTest(_ *testing.T, r *Runner) {
-	r.noClear = false
-	r.clear()
+	r.skipClean = false
+	r.clean()
 }
 
 func TestRunnerBasic(t *testing.T) {

@@ -3,7 +3,9 @@ package fastci
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -11,7 +13,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/robertkrimen/otto"
 	_ "github.com/robertkrimen/otto/underscore"
@@ -19,13 +23,11 @@ import (
 )
 
 type Runner struct {
-	vm *otto.Otto
-
+	vm  *otto.Otto
 	env *otto.Object
 
-	noClear bool
-
-	tempDirs []string
+	skipClean bool
+	tempDirs  []string
 
 	state struct {
 		registry string
@@ -265,12 +267,13 @@ func (r *Runner) runScript(call otto.FunctionCall) otto.Value {
 		shell = []string{"/bin/bash"}
 	}
 
-	f := rg.Must(os.OpenFile(r.state.script.path, os.O_RDONLY, 0))
-	defer f.Close()
+	buf := rg.Must(os.ReadFile(r.state.script.path))
+
+	log.Println("run script:", r.state.script.path, "\n", string(buf))
 
 	cmd := exec.Command(shell[0], shell[1:]...)
 	cmd.Env = rg.Must(r.createEnviron())
-	cmd.Stdin = f
+	cmd.Stdin = bytes.NewReader(buf)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	rg.Must0(cmd.Run())
@@ -432,8 +435,8 @@ func (r *Runner) setup() (err error) {
 	return
 }
 
-func (r *Runner) clear() {
-	if r.noClear {
+func (r *Runner) clean() {
+	if r.skipClean {
 		return
 	}
 	for _, dir := range r.tempDirs {
@@ -448,7 +451,13 @@ func (r *Runner) clear() {
 
 func (r *Runner) createTempDir() (dir string, err error) {
 	defer rg.Guard(&err)
-	dir = rg.Must(os.MkdirTemp("", "fastci-*-tmp"))
+
+	buf := make([]byte, 12)
+	rg.Must(rand.Read(buf))
+
+	dir = filepath.Join(os.TempDir(), "fastci-"+strconv.FormatInt(time.Now().Unix(), 10)+"-"+hex.EncodeToString(buf))
+	rg.Must0(os.MkdirAll(dir, 0755))
+
 	r.tempDirs = append(r.tempDirs, dir)
 	return
 }
@@ -465,7 +474,7 @@ func (r *Runner) Execute(ctx context.Context, script any) (err error) {
 	defer rg.Guard(&err)
 
 	rg.Must0(r.setup())
-	defer r.clear()
+	defer r.clean()
 
 	_, err = r.vm.Run(script)
 	return
