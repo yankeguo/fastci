@@ -67,7 +67,7 @@ Get or set the container profile for the pipeline.
 useProfile("staging");
 ```
 
-### `useVersion(version)`
+#### `useVersion(version)`
 
 Get or set the container version for the pipeline.
 
@@ -130,7 +130,7 @@ Get or set the build script file for the pipeline.
 useBuildScriptFile("build.sh");
 ```
 
-### `useBuildScriptShell(shell)`
+#### `useBuildScriptShell(shell)`
 
 Get or set the build script shell for the pipeline.
 
