@@ -294,11 +294,11 @@ func (r *Runner) useKubernetesWorkload(call otto.FunctionCall) otto.Value {
 func (r *Runner) resolveCodingCredentials() (username string, password string) {
 	var parts []string
 	if r.codingValuesTeam != "" {
-		parts = append(parts, sanitizeEnvKey(r.codingValuesTeam))
+		parts = append(parts, SanitizeEnvName(r.codingValuesTeam))
 		if r.codingValuesProject != "" {
-			parts = append(parts, sanitizeEnvKey(r.codingValuesProject))
+			parts = append(parts, SanitizeEnvName(r.codingValuesProject))
 			if r.codingValuesRepo != "" {
-				parts = append(parts, sanitizeEnvKey(r.codingValuesRepo))
+				parts = append(parts, SanitizeEnvName(r.codingValuesRepo))
 			}
 		}
 	}
