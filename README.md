@@ -4,16 +4,7 @@ An intuitive CLI tool that encompasses the entire cycle of `build`, `package`, `
 
 ## Usage
 
-**Stages**
-
-- `build`: Build the project.
-- `package`: Package the project to container image.
-- `push`: Push the container image to the registry.
-- `deploy`: Deploy the container image, directly to the Kubernetes cluster or by updating GitOps repository.
-
-**CLI**
-
-Since CI pipeline is very complex, the `fastci` is desiged to read the `JavaScript` pipeline from stdin, and execute in a single process.
+`fastci` is desiged to read the `JavaScript` pipeline from `stdin`, and execute in a single process.
 
 ```shell
 cat <<-EOF | fastci
