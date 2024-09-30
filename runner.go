@@ -171,7 +171,21 @@ func (r *Runner) createEnviron() (items []string, err error) {
 	return
 }
 
-func (r *Runner) fetchObjectBoolField(out *bool, obj *otto.Object, name string) {
+func (r *Runner) createPlainObject(m map[string]any) (ret otto.Value, err error) {
+	var obj *otto.Object
+	if obj, err = r.vm.Object("({})"); err != nil {
+		return
+	}
+	for key, val := range m {
+		if err = obj.Set(key, val); err != nil {
+			return
+		}
+	}
+	ret = obj.Value()
+	return
+}
+
+func (r *Runner) loadObjectBoolField(out *bool, obj *otto.Object, name string) {
 	val := rg.Must(obj.Get(name))
 	if val.IsUndefined() {
 		return
@@ -183,7 +197,7 @@ func (r *Runner) fetchObjectBoolField(out *bool, obj *otto.Object, name string) 
 	*out = rg.Must(val.ToBoolean())
 }
 
-func (r *Runner) fetchObjectStringField(out *string, obj *otto.Object, name string) {
+func (r *Runner) loadObjectStringField(out *string, obj *otto.Object, name string) {
 	val := rg.Must(obj.Get(name))
 	if val.IsUndefined() {
 		return
@@ -237,19 +251,19 @@ func (r *Runner) doPublish(call otto.FunctionCall) otto.Value {
 func (r *Runner) useKubernetesWorkload(call otto.FunctionCall) otto.Value {
 	if arg := call.Argument(0); arg.IsObject() {
 		obj := arg.Object()
-		r.fetchObjectStringField(&r.workloadNamespace, obj, "namespace")
-		r.fetchObjectStringField(&r.workloadName, obj, "name")
-		r.fetchObjectStringField(&r.workloadKind, obj, "kind")
-		r.fetchObjectStringField(&r.workloadContainer, obj, "container")
-		r.fetchObjectBoolField(&r.workloadInit, obj, "init")
+		r.loadObjectStringField(&r.workloadNamespace, obj, "namespace")
+		r.loadObjectStringField(&r.workloadName, obj, "name")
+		r.loadObjectStringField(&r.workloadKind, obj, "kind")
+		r.loadObjectStringField(&r.workloadContainer, obj, "container")
+		r.loadObjectBoolField(&r.workloadInit, obj, "init")
 	}
-	ret := rg.Must(r.vm.Object("({})"))
-	ret.Set("namespace", r.workloadNamespace)
-	ret.Set("name", r.workloadName)
-	ret.Set("kind", r.workloadKind)
-	ret.Set("container", r.workloadContainer)
-	ret.Set("init", r.workloadInit)
-	return ret.Value()
+	return rg.Must(r.createPlainObject(map[string]any{
+		"namespace": r.workloadNamespace,
+		"name":      r.workloadName,
+		"kind":      r.workloadKind,
+		"container": r.workloadContainer,
+		"init":      r.workloadInit,
+	}))
 }
 
 func (r *Runner) setup() (err error) {
