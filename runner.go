@@ -9,7 +9,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -30,17 +29,14 @@ type Runner struct {
 	tempDirs  []string
 
 	state struct {
-		registry string
-		image    string
-		profile  string
-		version  string
-		shell    []string
+		shell []string
 
 		script struct {
 			path string
 		}
 
 		docker struct {
+			images         []string
 			configPath     string
 			dockerfilePath string
 			context        string
@@ -90,6 +86,7 @@ func (r *Runner) createEnviron() (items []string, err error) {
 	return
 }
 
+/*
 func (r *Runner) createImages() (items []string, err error) {
 	if r.state.registry == "" {
 		err = errors.New("registry is not set")
@@ -116,6 +113,7 @@ func (r *Runner) createImages() (items []string, err error) {
 	}
 	return
 }
+*/
 
 func (r *Runner) useDeployer1(call otto.FunctionCall) otto.Value {
 	//TODO: implement deployer1
@@ -148,13 +146,16 @@ func (r *Runner) runScript(call otto.FunctionCall) otto.Value {
 }
 
 func (r *Runner) runDockerBuild(call otto.FunctionCall) otto.Value {
+	if len(r.state.docker.images) == 0 {
+		rg.Must0(errors.New("no images to build"))
+		return otto.UndefinedValue()
+	}
 	var args []string
 	if r.state.docker.configPath != "" {
 		args = append(args, "--config", r.state.docker.configPath)
 	}
 	args = append(args, "buildx", "build")
-	images := rg.Must(r.createImages())
-	for _, image := range images {
+	for _, image := range r.state.docker.images {
 		args = append(args, "-t", image)
 	}
 	if r.state.docker.dockerfilePath != "" {
@@ -175,12 +176,15 @@ func (r *Runner) runDockerBuild(call otto.FunctionCall) otto.Value {
 	cmd.Stderr = os.Stderr
 	rg.Must0(cmd.Run())
 
-	return rg.Must(fastjs.PlainObject(r, images))
+	return rg.Must(fastjs.PlainObject(r, r.state.docker.images))
 }
 
 func (r *Runner) runDockerPush(call otto.FunctionCall) otto.Value {
-	images := rg.Must(r.createImages())
-	for _, image := range images {
+	if len(r.state.docker.images) == 0 {
+		rg.Must0(errors.New("no images to build"))
+		return otto.UndefinedValue()
+	}
+	for _, image := range r.state.docker.images {
 		var args []string
 		if r.state.docker.configPath != "" {
 			args = append(args, "--config", r.state.docker.configPath)
@@ -195,7 +199,7 @@ func (r *Runner) runDockerPush(call otto.FunctionCall) otto.Value {
 		cmd.Stderr = os.Stderr
 		rg.Must0(cmd.Run())
 	}
-	return rg.Must(fastjs.PlainObject(r, images))
+	return rg.Must(fastjs.PlainObject(r, r.state.docker.images))
 }
 
 func (r *Runner) useKubernetesWorkload(call otto.FunctionCall) otto.Value {
@@ -293,12 +297,6 @@ func (r *Runner) setup() (err error) {
 
 	r.vm.Set("useShell", fastjs.GetterSetterForStringSlice(r, &r.state.shell, "shell"))
 	r.vm.Set("useEnv", fastjs.GetterSetterForObject(r, r.env, "env"))
-	r.vm.Set("useDeployer1", r.useDeployer1)
-	r.vm.Set("useDeployer2", r.useDeployer2)
-	r.vm.Set("useRegistry", fastjs.GetterSetterForString(r, &r.state.registry, "registry"))
-	r.vm.Set("useImage", fastjs.GetterSetterForString(r, &r.state.image, "image"))
-	r.vm.Set("useProfile", fastjs.GetterSetterForString(r, &r.state.profile, "profile"))
-	r.vm.Set("useVersion", fastjs.GetterSetterForString(r, &r.state.version, "version"))
 	r.vm.Set("useDockerConfig", fastjs.GetterSetterForLongString(r, &r.state.docker.configPath, "docker config", func(buf []byte, name string) (out string, err error) {
 		_, out, err = r.createTempFile("config.json", bytes.TrimSpace(buf))
 		return
@@ -308,19 +306,27 @@ func (r *Runner) setup() (err error) {
 		out, _, err = r.createTempFile("kubeconfig.yaml", buf)
 		return
 	}))
+
 	r.vm.Set("useScript", fastjs.GetterSetterForLongString(r, &r.state.script.path, "script", func(buf []byte, name string) (out string, err error) {
 		out, _, err = r.createTempFile("script.sh", bytes.TrimSpace(buf))
 		return
 	}))
 	r.vm.Set("runScript", r.runScript)
+
+	r.vm.Set("useDockerImages", fastjs.GetterSetterForStringSlice(r, &r.state.docker.images, "docker images"))
 	r.vm.Set("useDockerfile", fastjs.GetterSetterForString(r, &r.state.docker.dockerfilePath, "dockerfile"))
 	r.vm.Set("useDockerContext", fastjs.GetterSetterForString(r, &r.state.docker.context, "docker context"))
 	r.vm.Set("runDockerBuild", r.runDockerBuild)
 	r.vm.Set("runDockerPush", r.runDockerPush)
+
 	r.vm.Set("useKubernetesWorkload", r.useKubernetesWorkload)
-	r.vm.Set("useCodingValues", r.useCodingValues)
 	r.vm.Set("deployKubernetesWorkload", r.deployKubernetesWorkload)
+
+	r.vm.Set("useCodingValues", r.useCodingValues)
 	r.vm.Set("deployCodingValues", r.deployCodingValues)
+
+	r.vm.Set("useDeployer1", r.useDeployer1)
+	r.vm.Set("useDeployer2", r.useDeployer2)
 	return
 }
 

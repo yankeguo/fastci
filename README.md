@@ -83,52 +83,6 @@ useEnv("key");
 useEnv("key", "value");
 ```
 
-#### `useRegistry(registry)`
-
-Get or set the container registry for the pipeline.
-
-```javascript
-// set the container registry
-useRegistry("registry.cn-hangzhou.aliyuncs.com/eco-staging");
-// get the container registry
-useRegistry();
-```
-
-#### `useImage(image)`
-
-Get or set the container base image name
-
-```javascript
-// set the container base image name
-useImage("my-project");
-// get the container base image name
-useImage();
-```
-
-#### `useProfile(profile)`
-
-Get or set the profile for the pipeline.
-
-```javascript
-// set the profile
-useProfile("staging");
-// get the profile
-useProfile();
-```
-
-#### `useVersion(version)`
-
-Get or set the container version for the pipeline.
-
-```javascript
-// set the container version
-useVersion("114514");
-// get the container version
-useVersion();
-// set the version to environment variable BUILD_NUMBER
-useVersion(useEnv("BUILD_NUMBER"));
-```
-
 #### `useDockerConfig(dockerConfig)`
 
 This function is **Long Text Supported**
@@ -202,6 +156,18 @@ runScript();
 ```
 
 ### Docker Build
+
+#### `useDockerImages(images...)`
+
+Get or set the Docker images for `docker build` and `docker push`
+
+```javascript
+useDockerImages("my-custom/ubuntu:24.04", "my-custom/ubuntu:24");
+useDockerImages(["my-custom/ubuntu:24.04", "my-custom/ubuntu:24"]);
+// clear the Docker images
+useDockerImages(null);
+useDockerImages([]);
+```
 
 #### `useDockerfile(dockerfile)`
 
