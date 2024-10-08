@@ -343,7 +343,10 @@ func (r *Runner) setup() (err error) {
 
 	r.vm.Set("useDockerImages", fastjs.GetterSetterForStringSlice(r, &r.state.docker.images, "docker images"))
 	r.vm.Set("useDockerBuildArg", fastjs.GetterSetterForObject(r, r.state.docker.buildArg, "docker build arg"))
-	r.vm.Set("useDockerfile", fastjs.GetterSetterForString(r, &r.state.docker.dockerfilePath, "dockerfile"))
+	r.vm.Set("useDockerfile", fastjs.GetterSetterForLongString(r, &r.state.docker.dockerfilePath, "dockerfile", func(buf []byte, name string) (out string, err error) {
+		out, _, err = r.createTempFile("Dockerfile", bytes.TrimSpace(buf))
+		return
+	}))
 	r.vm.Set("useDockerBuildContext", fastjs.GetterSetterForString(r, &r.state.docker.buildContext, "docker context"))
 	r.vm.Set("runDockerBuild", r.runDockerBuild)
 	r.vm.Set("runDockerPush", r.runDockerPush)
