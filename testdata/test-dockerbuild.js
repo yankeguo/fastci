@@ -1,6 +1,6 @@
-useRegistry('ghcr.io/yankeguo')
-useImage('fastci-demo')
-useProfile('test')
-useVersion('123')
+useDockerImages(
+    'yankeguo/debian:12'
+)
 useDockerContext('testdata/context1')
 runDockerBuild()
+runDockerPush()
