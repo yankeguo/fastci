@@ -107,11 +107,11 @@ func (r *Runner) createEnvironMap() (m map[string]string, err error) {
 func (r *Runner) useDeployer(call otto.FunctionCall) otto.Value {
 	buf := rg.Must(call.Argument(0).Object().MarshalJSON())
 
-	var opts deployerOptions
+	var opts legacyDeployerOptions
 
 	rg.Must0(json.Unmarshal(buf, &opts))
 
-	rg.Must0(useDeployer(r, opts))
+	rg.Must0(r.useLegacyDeployer(opts))
 
 	return rg.Must(fastjs.Array(r, r.state.docker.images)).Value()
 }

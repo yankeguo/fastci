@@ -23,7 +23,7 @@ const (
 	deployerProfileDefault = "default"
 )
 
-type deployerOptions struct {
+type legacyDeployerOptions struct {
 	Cluster   string `json:"cluster"`
 	Manifest  string `json:"manifest"`
 	Profile   string `json:"profile"`
@@ -33,7 +33,7 @@ type deployerOptions struct {
 	Version   string `json:"version"`
 }
 
-func useDeployer(r *Runner, opts deployerOptions) (err error) {
+func (r *Runner) useLegacyDeployer(opts legacyDeployerOptions) (err error) {
 	defer rg.Guard(&err)
 
 	{
@@ -106,16 +106,16 @@ func useDeployer(r *Runner, opts deployerOptions) (err error) {
 	rg.Must0(yaml.Unmarshal(bufManifest, &header))
 
 	if header.Version == 0 {
-		err = useDeployerVersion1(r, opts, bufManifest)
+		err = r.useLegacyDeployerVersion1(opts, bufManifest)
 	} else if header.Version == 2 {
-		err = useDeployerVersion2(r, opts, bufManifest)
+		err = r.useLegacyDeployerVersion2(opts, bufManifest)
 	} else {
 		err = errors.New("unsupported deployer version")
 	}
 	return
 }
 
-func useDeployerVersion1(r *Runner, opts deployerOptions, manifest []byte) (err error) {
+func (r *Runner) useLegacyDeployerVersion1(opts legacyDeployerOptions, manifest []byte) (err error) {
 	defer rg.Guard(&err)
 
 	// load runner state from preset
@@ -261,7 +261,7 @@ func useDeployerVersion1(r *Runner, opts deployerOptions, manifest []byte) (err 
 	return
 }
 
-func useDeployerVersion2(r *Runner, opts deployerOptions, manifest []byte) (err error) {
+func (r *Runner) useLegacyDeployerVersion2(opts legacyDeployerOptions, manifest []byte) (err error) {
 	defer rg.Guard(&err)
 
 	// load runner state from preset
