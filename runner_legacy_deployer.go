@@ -87,6 +87,9 @@ func (r *Runner) useLegacyDeployer(opts legacyDeployerOptions) (err error) {
 		return
 	}
 
+	r.state.kubernetes.workload.name = opts.Workload
+	r.state.kubernetes.workload.namespace = opts.Namespace
+
 	var bufManifest []byte
 
 	// try read the manifest file content
