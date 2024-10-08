@@ -8,6 +8,7 @@
         "fastci",
         "fastjs",
         "kubeconfig",
-        "testdata"
+        "testdata",
+        "tmplfuncs"
     ]
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"log"
 	"os"
@@ -82,48 +83,37 @@ func (r *Runner) createEnviron() (items []string, err error) {
 		if val, err = r.env.Get(key); err != nil {
 			return
 		}
-		items = append(items, key+"="+val.String())
-	}
-	return
-}
-
-/*
-func (r *Runner) createImages() (items []string, err error) {
-	if r.state.registry == "" {
-		err = errors.New("registry is not set")
-		return
-	}
-	if r.state.image == "" {
-		err = errors.New("image is not set")
-		return
-	}
-	if r.state.profile == "" {
-		if r.state.version == "" {
-			items = append(items, path.Join(r.state.registry, r.state.image))
-		} else {
-			items = append(items, path.Join(r.state.registry, r.state.image))
-			items = append(items, path.Join(r.state.registry, r.state.image+":"+r.state.version))
-		}
-	} else {
-		if r.state.version == "" {
-			items = append(items, path.Join(r.state.registry, r.state.image+":"+r.state.profile))
-		} else {
-			items = append(items, path.Join(r.state.registry, r.state.image+":"+r.state.profile))
-			items = append(items, path.Join(r.state.registry, r.state.image+":"+r.state.profile+"-"+r.state.version))
+		if val.IsString() {
+			items = append(items, key+"="+val.String())
 		}
 	}
 	return
 }
-*/
 
-func (r *Runner) useDeployer1(call otto.FunctionCall) otto.Value {
-	//TODO: implement deployer1
-	return otto.NullValue()
+func (r *Runner) createEnvironMap() (m map[string]string, err error) {
+	m = make(map[string]string)
+	for _, key := range r.env.Keys() {
+		var val otto.Value
+		if val, err = r.env.Get(key); err != nil {
+			return
+		}
+		if val.IsString() {
+			m[key] = val.String()
+		}
+	}
+	return
 }
 
-func (r *Runner) useDeployer2(call otto.FunctionCall) otto.Value {
-	//TODO: implement deployer2
-	return otto.NullValue()
+func (r *Runner) useDeployer(call otto.FunctionCall) otto.Value {
+	buf := rg.Must(call.Argument(0).Object().MarshalJSON())
+
+	var opts deployerOptions
+
+	rg.Must0(json.Unmarshal(buf, &opts))
+
+	rg.Must0(useDeployer(r, opts))
+
+	return rg.Must(fastjs.Array(r, r.state.docker.images)).Value()
 }
 
 func (r *Runner) runScript(call otto.FunctionCall) otto.Value {
@@ -357,8 +347,7 @@ func (r *Runner) setup() (err error) {
 	r.vm.Set("useCodingValues", r.useCodingValues)
 	r.vm.Set("deployCodingValues", r.deployCodingValues)
 
-	r.vm.Set("useDeployer1", r.useDeployer1)
-	r.vm.Set("useDeployer2", r.useDeployer2)
+	r.vm.Set("useDeployer", r.useDeployer)
 	return
 }
 

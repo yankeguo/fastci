@@ -336,29 +336,18 @@ All non-numeric and non-alphabetic characters in the team, project, and repo nam
 
 ### Compatibility Functions
 
-#### `useDeployer1(preset, manifest="deployer.yml")`
+#### `useDeployer(preset, manifest="deployer.yml")`
 
-Use the `deployer1` preset and manifest, for compatibility with the legacy toolchain.
-
-```javascript
-useDeployer1("eco-staging", "deployer.yml");
-useDeployer1("eco-staging");
-useDeployer1({
-  preset: "eco-staging",
-  manifest: "deployer.yml",
-});
-```
-
-#### `useDeployer2(preset, manifest="deployer.yml")`
-
-Use the `deployer2` preset and manifest, for compatibility with the legacy toolchain.
+Use the `deployer` preset and manifest, for compatibility with the legacy toolchain.
 
 ```javascript
-useDeployer2("eco-staging", "mobile/deployer2.yml");
-useDeployer2("eco-staging");
-useDeployer2({
-  preset: "eco-staging",
-  manifest: "deployer.yml",
+useDeployer({
+  cluster: "eco-staging",
+  manifest: "mobile/deployer.yml",
+  profile: "dev",
+  namespace: "project",
+  workload: "app",
+  image: "my-image",
 });
 ```
 
