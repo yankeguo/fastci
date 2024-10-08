@@ -196,7 +196,7 @@ func (r *Runner) runDockerBuild(call otto.FunctionCall) otto.Value {
 	cmd.Stderr = os.Stderr
 	rg.Must0(cmd.Run())
 
-	return rg.Must(fastjs.PlainObject(r, r.state.docker.images))
+	return rg.Must(fastjs.Array(r, r.state.docker.images)).Value()
 }
 
 func (r *Runner) runDockerPush(call otto.FunctionCall) otto.Value {
@@ -223,7 +223,7 @@ func (r *Runner) runDockerPush(call otto.FunctionCall) otto.Value {
 		cmd.Stderr = os.Stderr
 		rg.Must0(cmd.Run())
 	}
-	return rg.Must(fastjs.PlainObject(r, r.state.docker.images))
+	return rg.Must(fastjs.Array(r, r.state.docker.images)).Value()
 }
 
 func (r *Runner) useKubernetesWorkload(call otto.FunctionCall) otto.Value {
@@ -235,13 +235,13 @@ func (r *Runner) useKubernetesWorkload(call otto.FunctionCall) otto.Value {
 		rg.Must0(fastjs.LoadStringField(&r.state.kubernetes.workload.container, obj, "container"))
 		rg.Must0(fastjs.LoadBoolField(&r.state.kubernetes.workload.init, obj, "init"))
 	}
-	return rg.Must(fastjs.PlainObject(r, map[string]any{
+	return rg.Must(fastjs.Object(r, map[string]any{
 		"namespace": r.state.kubernetes.workload.namespace,
 		"name":      r.state.kubernetes.workload.name,
 		"kind":      r.state.kubernetes.workload.kind,
 		"container": r.state.kubernetes.workload.container,
 		"init":      r.state.kubernetes.workload.init,
-	}))
+	})).Value()
 }
 
 func (r *Runner) resolveCodingCredentials() (username string, password string) {
@@ -294,14 +294,14 @@ func (r *Runner) useCodingValues(call otto.FunctionCall) otto.Value {
 		rg.Must0(fastjs.LoadStringField(&r.state.coding.values.file, obj, "file"))
 		rg.Must0(fastjs.LoadFunctionField(&r.state.coding.values.update, obj, "update"))
 	}
-	return rg.Must(fastjs.PlainObject(r, map[string]any{
+	return rg.Must(fastjs.Object(r, map[string]any{
 		"team":    r.state.coding.values.team,
 		"project": r.state.coding.values.project,
 		"repo":    r.state.coding.values.repo,
 		"branch":  r.state.coding.values.branch,
 		"file":    r.state.coding.values.file,
 		"update":  r.state.coding.values.update,
-	}))
+	})).Value()
 }
 
 func (r *Runner) deployKubernetesWorkload(call otto.FunctionCall) otto.Value {

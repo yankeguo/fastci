@@ -1,31 +1,31 @@
 package fastjs
 
 import (
-	"encoding/json"
-
 	"github.com/robertkrimen/otto"
 )
 
-func PlainObject(rp RuntimeProvider, val any) (out otto.Value, err error) {
-	var buf []byte
-	if buf, err = json.Marshal(val); err != nil {
+// Object creates a new object with the given map values.
+func Object(rp RuntimeProvider, m map[string]any) (obj *otto.Object, err error) {
+	if obj, err = rp.Runtime().Object(`({})`); err != nil {
 		return
 	}
-	var obj *otto.Object
-	if obj, err = rp.Runtime().Object("(" + string(buf) + ")"); err != nil {
-		return
+	for k, v := range m {
+		if err = obj.Set(k, v); err != nil {
+			return
+		}
 	}
-	out = obj.Value()
 	return
 }
 
-func UnmarshalPlainObject(out any, obj *otto.Object) (err error) {
-	var buf []byte
-	if buf, err = obj.MarshalJSON(); err != nil {
+// Array creates a new array with the given slice values.
+func Array[T any](rp RuntimeProvider, arr []T) (obj *otto.Object, err error) {
+	if obj, err = rp.Runtime().Object(`([])`); err != nil {
 		return
 	}
-	if err = json.Unmarshal(buf, out); err != nil {
-		return
+	for _, v := range arr {
+		if _, err = obj.Call("push", v); err != nil {
+			return
+		}
 	}
 	return
 }

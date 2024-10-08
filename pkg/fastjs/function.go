@@ -43,7 +43,8 @@ func GetterSetterForStringSlice(rp RuntimeProvider, out *[]string, name string) 
 		if first := call.Argument(0); first.IsNull() {
 			update = true
 		} else if first.IsObject() && first.Class() == "Array" {
-			rg.Must0(UnmarshalPlainObject(&values, first.Object()))
+			buf := rg.Must(first.Object().MarshalJSON())
+			rg.Must0(json.Unmarshal(buf, &values))
 			update = true
 		} else {
 			for _, val := range call.ArgumentList {
@@ -56,7 +57,7 @@ func GetterSetterForStringSlice(rp RuntimeProvider, out *[]string, name string) 
 			log.Printf("use %s: [%s]", name, strings.Join(*out, ", "))
 		}
 
-		return rg.Must(PlainObject(rp, *out))
+		return rg.Must(Array(rp, *out)).Value()
 	}
 }
 
