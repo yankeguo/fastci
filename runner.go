@@ -39,7 +39,8 @@ type Runner struct {
 			images         []string
 			configPath     string
 			dockerfilePath string
-			context        string
+			buildContext   string
+			buildArg       *otto.Object
 		}
 
 		kubernetes struct {
@@ -151,19 +152,34 @@ func (r *Runner) runDockerBuild(call otto.FunctionCall) otto.Value {
 		return otto.UndefinedValue()
 	}
 	var args []string
+
+	// config
 	if r.state.docker.configPath != "" {
 		args = append(args, "--config", r.state.docker.configPath)
 	}
-	args = append(args, "buildx", "build")
+
+	// command
+	args = append(args, "buildx", "build", "--load")
+
+	// build args
+	for _, key := range r.state.docker.buildArg.Keys() {
+		val := rg.Must(rg.Must(r.state.docker.buildArg.Get(key)).ToString())
+		args = append(args, "--build-arg", key+"="+val)
+	}
+
+	// images
 	for _, image := range r.state.docker.images {
 		args = append(args, "-t", image)
 	}
+
+	// dockerfile
 	if r.state.docker.dockerfilePath != "" {
 		args = append(args, "-f", r.state.docker.dockerfilePath)
 	}
-	args = append(args, "--load")
-	if r.state.docker.context != "" {
-		args = append(args, r.state.docker.context)
+
+	// build context
+	if r.state.docker.buildContext != "" {
+		args = append(args, r.state.docker.buildContext)
 	} else {
 		args = append(args, ".")
 	}
@@ -181,14 +197,18 @@ func (r *Runner) runDockerBuild(call otto.FunctionCall) otto.Value {
 
 func (r *Runner) runDockerPush(call otto.FunctionCall) otto.Value {
 	if len(r.state.docker.images) == 0 {
-		rg.Must0(errors.New("no images to build"))
+		rg.Must0(errors.New("no images to push"))
 		return otto.UndefinedValue()
 	}
 	for _, image := range r.state.docker.images {
 		var args []string
+
+		// config
 		if r.state.docker.configPath != "" {
 			args = append(args, "--config", r.state.docker.configPath)
 		}
+
+		// command
 		args = append(args, "push", image)
 
 		log.Println("run docker push:", strings.Join(args, " "))
@@ -291,6 +311,10 @@ func (r *Runner) deployCodingValues(call otto.FunctionCall) otto.Value {
 func (r *Runner) setup() (err error) {
 	r.vm = otto.New()
 
+	if r.state.docker.buildArg, err = r.vm.Object("({})"); err != nil {
+		return
+	}
+
 	if r.env, err = fastjs.CreateEnvironObject(r); err != nil {
 		return
 	}
@@ -314,8 +338,9 @@ func (r *Runner) setup() (err error) {
 	r.vm.Set("runScript", r.runScript)
 
 	r.vm.Set("useDockerImages", fastjs.GetterSetterForStringSlice(r, &r.state.docker.images, "docker images"))
+	r.vm.Set("useDockerBuildArg", fastjs.GetterSetterForObject(r, r.state.docker.buildArg, "docker build arg"))
 	r.vm.Set("useDockerfile", fastjs.GetterSetterForString(r, &r.state.docker.dockerfilePath, "dockerfile"))
-	r.vm.Set("useDockerContext", fastjs.GetterSetterForString(r, &r.state.docker.context, "docker context"))
+	r.vm.Set("useDockerBuildContext", fastjs.GetterSetterForString(r, &r.state.docker.buildContext, "docker context"))
 	r.vm.Set("runDockerBuild", r.runDockerBuild)
 	r.vm.Set("runDockerPush", r.runDockerPush)
 

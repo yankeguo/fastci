@@ -169,6 +169,19 @@ useDockerImages(null);
 useDockerImages([]);
 ```
 
+#### `useDockerBuildArg(key, val)`
+
+Get or set the Docker build arguments.
+
+```javascript
+// get all Docker build arguments
+useDockerBuildArg();
+// get the value of the specified Docker build argument
+useDockerBuildArg("key");
+// set the value of the specified Docker build argument
+useDockerBuildArg("key", "val");
+```
+
 #### `useDockerfile(dockerfile)`
 
 This function is **Long Text Supported**
@@ -183,12 +196,12 @@ useDockerfile([
 ]);
 ```
 
-#### `useDockerContext(context)`
+#### `useDockerBuildContext(context)`
 
 Get or set the current docker context.
 
 ```javascript
-useDockerContext("./docker/");
+useDockerBuildContext("./docker/");
 ```
 
 #### `runDockerBuild()`
