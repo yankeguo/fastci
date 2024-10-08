@@ -10,28 +10,33 @@ import (
 )
 
 var (
-	regexpNonEnvName = regexp.MustCompile(`[^a-zA-Z0-9]`)
+	nonAlphaNumeric = regexp.MustCompile(`[^a-zA-Z0-9]`)
 )
 
-// SanitizeEnvName sanitizes environment variable name by converting to uppercase and replacing non-alphanumeric characters with underscore
-func SanitizeEnvName(name string) string {
-	name = strings.ToUpper(name)
-	name = regexpNonEnvName.ReplaceAllString(name, "_")
-	return name
+func cleanEnvKey(name string) string {
+	return nonAlphaNumeric.ReplaceAllString(strings.ToUpper(name), "_")
 }
 
-// ConvertJSONToYAML converts JSON to YAML if not already YAML
-func ConvertJSONToYAML(buf []byte) (out []byte, err error) {
-	var obj any
-	if err = json.Unmarshal(buf, &obj); err != nil {
-		// test if it's already YAML
+func toYaml(buf []byte) (out []byte, err error) {
+	// test if it's already a valid yaml
+	{
+		var obj any
 		if err = yaml.Unmarshal(buf, &obj); err == nil {
 			out = buf
-		} else {
-			err = errors.New("invalid JSON or YAML")
+			return
 		}
-		return
 	}
-	out, err = yaml.Marshal(obj)
+
+	// test if it's a valid JSON
+	{
+		var obj any
+		if err = json.Unmarshal(buf, &obj); err == nil {
+			out, err = yaml.Marshal(obj)
+			return
+		}
+	}
+
+	err = errors.New("invalid input, cannot be converted to YAML")
+
 	return
 }

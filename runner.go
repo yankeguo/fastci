@@ -247,11 +247,11 @@ func (r *Runner) useKubernetesWorkload(call otto.FunctionCall) otto.Value {
 func (r *Runner) resolveCodingCredentials() (username string, password string) {
 	var parts []string
 	if r.state.coding.values.team != "" {
-		parts = append(parts, SanitizeEnvName(r.state.coding.values.team))
+		parts = append(parts, cleanEnvKey(r.state.coding.values.team))
 		if r.state.coding.values.project != "" {
-			parts = append(parts, SanitizeEnvName(r.state.coding.values.project))
+			parts = append(parts, cleanEnvKey(r.state.coding.values.project))
 			if r.state.coding.values.repo != "" {
-				parts = append(parts, SanitizeEnvName(r.state.coding.values.repo))
+				parts = append(parts, cleanEnvKey(r.state.coding.values.repo))
 			}
 		}
 	}
@@ -330,7 +330,7 @@ func (r *Runner) setup() (err error) {
 		return
 	}))
 	r.vm.Set("useKubeconfig", fastjs.GetterSetterForLongString(r, &r.state.kubernetes.kubeconfigPath, "kubeconfig", func(buf []byte, name string) (out string, err error) {
-		buf = rg.Must(ConvertJSONToYAML(bytes.TrimSpace(buf)))
+		buf = rg.Must(toYaml(bytes.TrimSpace(buf)))
 		out, _, err = r.createTempFile("kubeconfig.yaml", buf)
 		return
 	}))

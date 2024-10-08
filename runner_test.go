@@ -60,7 +60,7 @@ func TestRunnerKubeconfig(t *testing.T) {
 })`)
 	defer clearRunnerForTest(t, r)
 	buf := rg.Must(os.ReadFile(r.state.kubernetes.kubeconfigPath))
-	require.Equal(t, "hello: world\n", string(buf))
+	require.Equal(t, "{\"hello\":\"world\"}", string(buf))
 }
 
 func TestRunnerScript(t *testing.T) {
