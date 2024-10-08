@@ -28,4 +28,14 @@ func TestConvertJSONToYAML(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, "world", data.Hello)
+
+	buf = []byte("hello: world")
+	out, err = ConvertJSONToYAML(buf)
+	require.NoError(t, err)
+	require.Equal(t, buf, out)
+
+	buf = []byte(":")
+	out, err = ConvertJSONToYAML(buf)
+	require.Error(t, err)
+	require.Empty(t, out)
 }

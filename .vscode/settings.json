@@ -3,8 +3,11 @@
         "aliyuncs",
         "auths",
         "buildscript",
+        "buildx",
         "Dockerconfig",
         "fastci",
-        "kubeconfig"
+        "fastjs",
+        "kubeconfig",
+        "testdata"
     ]
 }

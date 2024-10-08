@@ -1,0 +1,6 @@
+useRegistry('ghcr.io/yankeguo')
+useImage('fastci-demo')
+useProfile('test')
+useVersion('123')
+useDockerContext('testdata/context1')
+runDockerBuild()

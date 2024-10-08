@@ -58,7 +58,17 @@ useKubeconfig(["apiVersion: v1", "kind: xxx"]);
 useKubeconfig("apiVersion: v1", "kind: xxx");
 ```
 
-### Basic Functions
+### Basic Configuration
+
+#### `useShell(shell...)`
+
+Get or set the shell for the current script.
+
+```javascript
+useShell("zsh");
+useShell("bash", "-eux");
+useShell(["bash", "-eux"]);
+```
 
 #### `useEnv`
 
@@ -165,7 +175,7 @@ useKubeconfig({
 useKubeconfig();
 ```
 
-### Build Functions
+### Script
 
 #### `useScript(script)`
 
@@ -183,14 +193,6 @@ echo 'Building...'\n\
 );
 ```
 
-#### `useScriptShell(shell)`
-
-Get or set the shell for the current script.
-
-```javascript
-useScriptShell("zsh");
-```
-
 #### `runScript()`
 
 Execute the current script in the pipeline.
@@ -199,7 +201,7 @@ Execute the current script in the pipeline.
 runScript();
 ```
 
-### Package Functions
+### Docker Build
 
 #### `useDockerfile(dockerfile)`
 
@@ -231,7 +233,9 @@ Package the container image with docker build command.
 runDockerBuild();
 ```
 
-### Publish Functions
+Returns the container images as array of string.
+
+### Docker Push
 
 #### `runDockerPush()`
 
@@ -241,7 +245,7 @@ Push the container image to the registry.
 runDockerPush();
 ```
 
-### Deploy Functions
+### Deploy to Kubernetes
 
 #### `useKubernetesWorkload(opts)`
 
@@ -286,6 +290,8 @@ Deploy the container image to the Kubernetes cluster.
 ```javascript
 deployKubernetesWorkload();
 ```
+
+### Deploy to Coding Values file
 
 #### `useCodingValues(opts)`
 

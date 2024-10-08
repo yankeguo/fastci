@@ -4,13 +4,12 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
-	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
-	"fmt"
+	"errors"
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -19,6 +18,7 @@ import (
 
 	"github.com/robertkrimen/otto"
 	_ "github.com/robertkrimen/otto/underscore"
+	"github.com/yankeguo/fastci/pkg/fastjs"
 	"github.com/yankeguo/rg"
 )
 
@@ -34,15 +34,14 @@ type Runner struct {
 		image    string
 		profile  string
 		version  string
+		shell    []string
 
 		script struct {
-			path  string
-			shell []string
+			path string
 		}
 
 		docker struct {
-			dockerConfigPath string
-
+			configPath     string
 			dockerfilePath string
 			context        string
 		}
@@ -76,113 +75,8 @@ func NewRunner() *Runner {
 	return &Runner{}
 }
 
-func (r *Runner) createGetterSetterForObject(out *otto.Object, name string) func(call otto.FunctionCall) otto.Value {
-	return func(call otto.FunctionCall) otto.Value {
-		if len(call.ArgumentList) == 0 {
-			return out.Value()
-		} else if len(call.ArgumentList) == 1 {
-			key := call.Argument(0).String()
-			return rg.Must(out.Get(key))
-		} else {
-			key, val := call.Argument(0), call.Argument(1)
-			if key.IsString() {
-				out.Set(key.String(), val)
-				log.Printf("set %s: %s", name, key.String())
-			} else {
-				panic(fmt.Sprintf("set %s.%s failed, key should be string", name, key.String()))
-			}
-			return val
-		}
-	}
-}
-
-func (r *Runner) createGetterSetterForStringSlice(out *[]string, name string) func(call otto.FunctionCall) otto.Value {
-	return func(call otto.FunctionCall) otto.Value {
-		var newValues []string
-		for _, val := range call.ArgumentList {
-			newValues = append(newValues, val.String())
-		}
-		if len(newValues) > 0 {
-			*out = newValues
-			log.Printf("use %s: [%s]", name, strings.Join(*out, ", "))
-		}
-		return rg.Must(otto.ToValue(*out))
-	}
-}
-
-func (r *Runner) createGetterSetterForString(out *string, name string) func(call otto.FunctionCall) otto.Value {
-	return func(call otto.FunctionCall) otto.Value {
-		if val := call.Argument(0); val.IsString() {
-			*out = val.String()
-			log.Printf("use %s: %s", name, *out)
-		}
-		return rg.Must(otto.ToValue(*out))
-	}
-}
-
-func (r *Runner) createGetterSetterForLongString(out *string, name string, convert func(buf []byte) (out string, err error)) func(call otto.FunctionCall) otto.Value {
-	return func(call otto.FunctionCall) otto.Value {
-		var (
-			newContent []byte
-			newPath    string
-		)
-
-		if val := call.Argument(0); val.IsString() {
-			for i, val := range call.ArgumentList {
-				if i > 0 {
-					newContent = append(newContent, '\n')
-				}
-				newContent = append(newContent, []byte(val.String())...)
-			}
-		} else if val.IsObject() {
-			buf := rg.Must(val.Object().MarshalJSON())
-
-			var (
-				lines []string
-				data  struct {
-					Content json.RawMessage `json:"content"`
-					Base64  string          `json:"base64"`
-					Path    string          `json:"path"`
-				}
-			)
-
-			if err := json.Unmarshal(buf, &lines); err == nil {
-				newContent = []byte(strings.Join(lines, "\n"))
-			} else if err = json.Unmarshal(buf, &data); err == nil {
-				if data.Path != "" {
-					newPath = data.Path
-				} else {
-					if len(data.Content) > 0 {
-						var s string
-						var lines []string
-						if err := json.Unmarshal(data.Content, &s); err == nil {
-							// string
-							newContent = []byte(s)
-						} else if err := json.Unmarshal(data.Content, &lines); err == nil {
-							// array of string
-							newContent = []byte(strings.Join(lines, "\n"))
-						} else {
-							// object (raw)
-							newContent = data.Content
-						}
-					} else if data.Base64 != "" {
-						// base64
-						newContent = rg.Must(base64.StdEncoding.DecodeString(data.Base64))
-					}
-				}
-			}
-		}
-
-		if newPath != "" {
-			*out = newPath
-			log.Println("use", name, "from", newPath)
-		} else if len(newContent) > 0 {
-			*out = rg.Must(convert(newContent))
-			log.Println("use", name, "from content")
-		}
-
-		return rg.Must(otto.ToValue(*out))
-	}
+func (r *Runner) Runtime() *otto.Otto {
+	return r.vm
 }
 
 func (r *Runner) createEnviron() (items []string, err error) {
@@ -196,59 +90,31 @@ func (r *Runner) createEnviron() (items []string, err error) {
 	return
 }
 
-func (r *Runner) createPlainObject(m map[string]any) (ret otto.Value, err error) {
-	var obj *otto.Object
-	if obj, err = r.vm.Object("({})"); err != nil {
+func (r *Runner) createImages() (items []string, err error) {
+	if r.state.registry == "" {
+		err = errors.New("registry is not set")
 		return
 	}
-	for key, val := range m {
-		if err = obj.Set(key, val); err != nil {
-			return
+	if r.state.image == "" {
+		err = errors.New("image is not set")
+		return
+	}
+	if r.state.profile == "" {
+		if r.state.version == "" {
+			items = append(items, path.Join(r.state.registry, r.state.image))
+		} else {
+			items = append(items, path.Join(r.state.registry, r.state.image))
+			items = append(items, path.Join(r.state.registry, r.state.image+":"+r.state.version))
+		}
+	} else {
+		if r.state.version == "" {
+			items = append(items, path.Join(r.state.registry, r.state.image+":"+r.state.profile))
+		} else {
+			items = append(items, path.Join(r.state.registry, r.state.image+":"+r.state.profile))
+			items = append(items, path.Join(r.state.registry, r.state.image+":"+r.state.profile+"-"+r.state.version))
 		}
 	}
-	ret = obj.Value()
 	return
-}
-
-func (r *Runner) loadObjectBoolField(out *bool, obj *otto.Object, name string) {
-	val := rg.Must(obj.Get(name))
-	if val.IsUndefined() {
-		return
-	}
-	if val.IsNull() {
-		*out = false
-		return
-	}
-	*out = rg.Must(val.ToBoolean())
-}
-
-func (r *Runner) loadObjectStringField(out *string, obj *otto.Object, name string) {
-	val := rg.Must(obj.Get(name))
-	if val.IsUndefined() {
-		return
-	}
-	if val.IsNull() {
-		*out = ""
-		return
-	}
-	*out = val.String()
-}
-
-func (r *Runner) loadObjectFunctionField(out *otto.Value, obj *otto.Object, name string) {
-	val := rg.Must(obj.Get(name))
-	if val.IsUndefined() {
-		return
-	}
-	if val.IsNull() {
-		*out = otto.Value{}
-		return
-	}
-	if val.IsObject() {
-		if val.Class() != "Function" {
-			panic(fmt.Sprintf("field %s should be a function", name))
-		}
-	}
-	*out = val
 }
 
 func (r *Runner) useDeployer1(call otto.FunctionCall) otto.Value {
@@ -262,9 +128,9 @@ func (r *Runner) useDeployer2(call otto.FunctionCall) otto.Value {
 }
 
 func (r *Runner) runScript(call otto.FunctionCall) otto.Value {
-	shell := r.state.script.shell
+	shell := r.state.shell
 	if len(shell) == 0 {
-		shell = []string{"/bin/bash"}
+		shell = []string{"bash"}
 	}
 
 	buf := rg.Must(os.ReadFile(r.state.script.path))
@@ -282,25 +148,66 @@ func (r *Runner) runScript(call otto.FunctionCall) otto.Value {
 }
 
 func (r *Runner) runDockerBuild(call otto.FunctionCall) otto.Value {
-	//TODO: implement package
-	return otto.NullValue()
+	var args []string
+	if r.state.docker.configPath != "" {
+		args = append(args, "--config", r.state.docker.configPath)
+	}
+	args = append(args, "buildx", "build")
+	images := rg.Must(r.createImages())
+	for _, image := range images {
+		args = append(args, "-t", image)
+	}
+	if r.state.docker.dockerfilePath != "" {
+		args = append(args, "-f", r.state.docker.dockerfilePath)
+	}
+	args = append(args, "--load")
+	if r.state.docker.context != "" {
+		args = append(args, r.state.docker.context)
+	} else {
+		args = append(args, ".")
+	}
+
+	log.Println("run docker build:", strings.Join(args, " "))
+
+	cmd := exec.Command("docker", args...)
+	cmd.Env = rg.Must(r.createEnviron())
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	rg.Must0(cmd.Run())
+
+	return rg.Must(fastjs.PlainObject(r, images))
 }
 
 func (r *Runner) runDockerPush(call otto.FunctionCall) otto.Value {
-	//TODO: implement publish
-	return otto.NullValue()
+	images := rg.Must(r.createImages())
+	for _, image := range images {
+		var args []string
+		if r.state.docker.configPath != "" {
+			args = append(args, "--config", r.state.docker.configPath)
+		}
+		args = append(args, "push", image)
+
+		log.Println("run docker push:", strings.Join(args, " "))
+
+		cmd := exec.Command("docker", args...)
+		cmd.Env = rg.Must(r.createEnviron())
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		rg.Must0(cmd.Run())
+	}
+	return rg.Must(fastjs.PlainObject(r, images))
 }
 
 func (r *Runner) useKubernetesWorkload(call otto.FunctionCall) otto.Value {
 	if arg := call.Argument(0); arg.IsObject() {
 		obj := arg.Object()
-		r.loadObjectStringField(&r.state.kubernetes.workload.namespace, obj, "namespace")
-		r.loadObjectStringField(&r.state.kubernetes.workload.name, obj, "name")
-		r.loadObjectStringField(&r.state.kubernetes.workload.kind, obj, "kind")
-		r.loadObjectStringField(&r.state.kubernetes.workload.container, obj, "container")
-		r.loadObjectBoolField(&r.state.kubernetes.workload.init, obj, "init")
+		rg.Must0(fastjs.LoadStringField(&r.state.kubernetes.workload.namespace, obj, "namespace"))
+		rg.Must0(fastjs.LoadStringField(&r.state.kubernetes.workload.name, obj, "name"))
+		rg.Must0(fastjs.LoadStringField(&r.state.kubernetes.workload.kind, obj, "kind"))
+		rg.Must0(fastjs.LoadStringField(&r.state.kubernetes.workload.container, obj, "container"))
+		rg.Must0(fastjs.LoadBoolField(&r.state.kubernetes.workload.init, obj, "init"))
 	}
-	return rg.Must(r.createPlainObject(map[string]any{
+	return rg.Must(fastjs.PlainObject(r, map[string]any{
 		"namespace": r.state.kubernetes.workload.namespace,
 		"name":      r.state.kubernetes.workload.name,
 		"kind":      r.state.kubernetes.workload.kind,
@@ -352,14 +259,14 @@ func (r *Runner) resolveCodingCredentials() (username string, password string) {
 func (r *Runner) useCodingValues(call otto.FunctionCall) otto.Value {
 	if arg := call.Argument(0); arg.IsObject() {
 		obj := arg.Object()
-		r.loadObjectStringField(&r.state.coding.values.team, obj, "team")
-		r.loadObjectStringField(&r.state.coding.values.project, obj, "project")
-		r.loadObjectStringField(&r.state.coding.values.repo, obj, "repo")
-		r.loadObjectStringField(&r.state.coding.values.branch, obj, "branch")
-		r.loadObjectStringField(&r.state.coding.values.file, obj, "file")
-		r.loadObjectFunctionField(&r.state.coding.values.update, obj, "update")
+		rg.Must0(fastjs.LoadStringField(&r.state.coding.values.team, obj, "team"))
+		rg.Must0(fastjs.LoadStringField(&r.state.coding.values.project, obj, "project"))
+		rg.Must0(fastjs.LoadStringField(&r.state.coding.values.repo, obj, "repo"))
+		rg.Must0(fastjs.LoadStringField(&r.state.coding.values.branch, obj, "branch"))
+		rg.Must0(fastjs.LoadStringField(&r.state.coding.values.file, obj, "file"))
+		rg.Must0(fastjs.LoadFunctionField(&r.state.coding.values.update, obj, "update"))
 	}
-	return rg.Must(r.createPlainObject(map[string]any{
+	return rg.Must(fastjs.PlainObject(r, map[string]any{
 		"team":    r.state.coding.values.team,
 		"project": r.state.coding.values.project,
 		"repo":    r.state.coding.values.repo,
@@ -380,52 +287,34 @@ func (r *Runner) deployCodingValues(call otto.FunctionCall) otto.Value {
 func (r *Runner) setup() (err error) {
 	r.vm = otto.New()
 
-	// setup env
-	if r.env, err = r.vm.Object("({})"); err != nil {
+	if r.env, err = fastjs.CreateEnvironObject(r); err != nil {
 		return
 	}
-	for _, entry := range os.Environ() {
-		splits := strings.SplitN(entry, "=", 2)
-		if len(splits) == 2 {
-			if err = r.env.Set(splits[0], splits[1]); err != nil {
-				return
-			}
-		} else if len(splits) == 1 {
-			if err = r.env.Set(splits[0], ""); err != nil {
-				return
-			}
-		}
-	}
 
-	r.vm.Set("useEnv", r.createGetterSetterForObject(r.env, "env"))
+	r.vm.Set("useShell", fastjs.GetterSetterForStringSlice(r, &r.state.shell, "shell"))
+	r.vm.Set("useEnv", fastjs.GetterSetterForObject(r, r.env, "env"))
 	r.vm.Set("useDeployer1", r.useDeployer1)
 	r.vm.Set("useDeployer2", r.useDeployer2)
-	r.vm.Set("useRegistry", r.createGetterSetterForString(&r.state.registry, "registry"))
-	r.vm.Set("useImage", r.createGetterSetterForString(&r.state.image, "image"))
-	r.vm.Set("useProfile", r.createGetterSetterForString(&r.state.profile, "profile"))
-	r.vm.Set("useVersion", r.createGetterSetterForString(&r.state.version, "version"))
-	r.vm.Set("useDockerConfig", r.createGetterSetterForLongString(&r.state.docker.dockerConfigPath, "docker config", func(buf []byte) (out string, err error) {
+	r.vm.Set("useRegistry", fastjs.GetterSetterForString(r, &r.state.registry, "registry"))
+	r.vm.Set("useImage", fastjs.GetterSetterForString(r, &r.state.image, "image"))
+	r.vm.Set("useProfile", fastjs.GetterSetterForString(r, &r.state.profile, "profile"))
+	r.vm.Set("useVersion", fastjs.GetterSetterForString(r, &r.state.version, "version"))
+	r.vm.Set("useDockerConfig", fastjs.GetterSetterForLongString(r, &r.state.docker.configPath, "docker config", func(buf []byte, name string) (out string, err error) {
 		_, out, err = r.createTempFile("config.json", bytes.TrimSpace(buf))
 		return
 	}))
-	r.vm.Set("useKubeconfig", r.createGetterSetterForLongString(&r.state.kubernetes.kubeconfigPath, "kubeconfig", func(buf []byte) (out string, err error) {
-		buf = bytes.TrimSpace(buf)
-		if bytes.HasPrefix(buf, []byte("{")) {
-			if buf, err = ConvertJSONToYAML(buf); err != nil {
-				return
-			}
-		}
+	r.vm.Set("useKubeconfig", fastjs.GetterSetterForLongString(r, &r.state.kubernetes.kubeconfigPath, "kubeconfig", func(buf []byte, name string) (out string, err error) {
+		buf = rg.Must(ConvertJSONToYAML(bytes.TrimSpace(buf)))
 		out, _, err = r.createTempFile("kubeconfig.yaml", buf)
 		return
 	}))
-	r.vm.Set("useScript", r.createGetterSetterForLongString(&r.state.script.path, "script", func(buf []byte) (out string, err error) {
+	r.vm.Set("useScript", fastjs.GetterSetterForLongString(r, &r.state.script.path, "script", func(buf []byte, name string) (out string, err error) {
 		out, _, err = r.createTempFile("script.sh", bytes.TrimSpace(buf))
 		return
 	}))
-	r.vm.Set("useScriptShell", r.createGetterSetterForStringSlice(&r.state.script.shell, "script shell"))
 	r.vm.Set("runScript", r.runScript)
-	r.vm.Set("useDockerfile", r.createGetterSetterForString(&r.state.docker.dockerfilePath, "dockerfile"))
-	r.vm.Set("useDockerContext", r.createGetterSetterForString(&r.state.docker.context, "docker context"))
+	r.vm.Set("useDockerfile", fastjs.GetterSetterForString(r, &r.state.docker.dockerfilePath, "dockerfile"))
+	r.vm.Set("useDockerContext", fastjs.GetterSetterForString(r, &r.state.docker.context, "docker context"))
 	r.vm.Set("runDockerBuild", r.runDockerBuild)
 	r.vm.Set("runDockerPush", r.runDockerPush)
 	r.vm.Set("useKubernetesWorkload", r.useKubernetesWorkload)

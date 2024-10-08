@@ -68,7 +68,7 @@ func TestRunnerDockerConfig(t *testing.T) {
 	}
 	)`)
 	defer clearRunnerForTest(t, r)
-	buf := rg.Must(os.ReadFile(filepath.Join(r.state.docker.dockerConfigPath, "config.json")))
+	buf := rg.Must(os.ReadFile(filepath.Join(r.state.docker.configPath, "config.json")))
 	require.Equal(t, `{"auths":{}}`, string(buf))
 }
 
