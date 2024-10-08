@@ -24,6 +24,10 @@ func TestGetterSetterForObject(t *testing.T) {
 	val, err = vm.Eval("fn('hello')")
 	require.NoError(t, err)
 	require.Equal(t, "World", val.String())
+
+	val, err = vm.Eval("fn('hello', undefined)")
+	require.NoError(t, err)
+	require.True(t, val.IsUndefined())
 }
 
 func TestGetterSetterForStringSlice(t *testing.T) {

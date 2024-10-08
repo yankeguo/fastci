@@ -163,8 +163,12 @@ func (r *Runner) runDockerBuild(call otto.FunctionCall) otto.Value {
 
 	// build args
 	for _, key := range r.state.docker.buildArg.Keys() {
-		val := rg.Must(rg.Must(r.state.docker.buildArg.Get(key)).ToString())
-		args = append(args, "--build-arg", key+"="+val)
+		val := rg.Must(r.state.docker.buildArg.Get(key))
+		if !val.IsString() {
+			continue
+		}
+		valStr := rg.Must(val.ToString())
+		args = append(args, "--build-arg", key+"="+valStr)
 	}
 
 	// images
