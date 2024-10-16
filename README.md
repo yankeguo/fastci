@@ -11,7 +11,10 @@ An intuitive CLI tool that encompasses the entire cycle of `build`, `package`, `
 
 ```shell
 cat <<-EOF | fastci
-useDeployer2("eco-staging", "mobile/deployer2.yml")
+useScript(
+  'pnpm install',
+  'pnpm run generate'
+)
 runScript()
 EOF
 ```
