@@ -40,3 +40,12 @@ func toYaml(buf []byte) (out []byte, err error) {
 
 	return
 }
+
+func DecorateScriptForLogging(script string) string {
+	script = strings.TrimSpace(script)
+	lines := strings.Split(script, "\n")
+	for i := range lines {
+		lines[i] = "> " + lines[i]
+	}
+	return strings.Join(lines, "\n")
+}

@@ -124,7 +124,7 @@ func (r *Runner) runScript(call otto.FunctionCall) otto.Value {
 
 	buf := rg.Must(os.ReadFile(r.state.script.path))
 
-	log.Println("run script:", r.state.script.path, "\n", string(buf))
+	log.Println("run script:", r.state.script.path+"\n"+DecorateScriptForLogging(string(buf)))
 
 	cmd := exec.Command(shell[0], shell[1:]...)
 	cmd.Env = rg.Must(r.createEnviron())
